@@ -20,7 +20,7 @@ def process_keys(event_list, player):
             if event.key == pygame.K_ESCAPE and player is not None:
                 player.pause = not player.pause
 
-def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_height):
+def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_height, filename):
     Player.containers = (updatable, drawable)
     player = Player(screen_width / 2, screen_height / 2)
 
@@ -34,7 +34,6 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
     ui = UI(0, 0)
 
     # Load data
-    filename = "./data/data.pickle"
     if os.path.exists(filename) and os.path.getsize(filename) > 0:
         with open(filename, "rb") as f:
             loaded_data = pickle.load(f)
@@ -72,6 +71,8 @@ def main():
 
     quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
+    filename = "./data/data.pickle"
+
     while run:
         window_size = pygame.display.get_window_size()
         dynamic_screen_width = window_size[0]
@@ -91,7 +92,7 @@ def main():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
                     if new_game_button.check_collisions(mouse_pos):
-                        player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height)
+                        player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
                         in_menu = False
                     if quit_game_button.check_collisions(mouse_pos):
                         run = False
