@@ -10,8 +10,9 @@ class Asteroid(CircleShape):
     def draw(self, screen):
         return pygame.draw.circle(screen, "white", self.position, self.radius, width=2)
 
-    def update(self, dt):
+    def update(self, dt, screen_width, screen_height):
         self.position += (self.velocity * dt)
+        self.__check_off_screen(screen_width, screen_height)
 
     def split(self):
         self.kill()
@@ -29,3 +30,14 @@ class Asteroid(CircleShape):
 
         new_asteroid_1.velocity = vector1 * 1.2
         new_asteroid_2.velocity = vector2 * 1.2
+
+    def __check_off_screen(self, screen_width, screen_height):
+        units_off_screen = 100
+        if self.position[0] >= screen_width + units_off_screen:
+            self.position[0] = -units_off_screen
+        elif self.position[0] <= -units_off_screen:
+            self.position[0] = screen_width
+        elif self.position[1] <= -units_off_screen:
+            self.position[1] = screen_height
+        elif self.position[1] >= screen_height + units_off_screen:
+            self.position[1] = -units_off_screen

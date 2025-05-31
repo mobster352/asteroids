@@ -9,5 +9,5 @@ class Shot(CircleShape):
     def draw(self, screen):
         return pygame.draw.circle(screen, "white", self.position, self.radius, width=2)
 
-    def update(self, dt):
+    def update(self, dt, screen_width, screen_height):
         self.position += (self.velocity * dt)

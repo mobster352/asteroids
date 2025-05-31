@@ -82,17 +82,19 @@ def main():
         for event in event_list:
             if event.type == pygame.QUIT:
                 run = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
-                if new_game_button.check_collisions(mouse_pos):
-                    player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height)
-                    in_menu = False
-                if quit_game_button.check_collisions(mouse_pos):
-                    run = False
 
         process_keys(event_list, player)
 
         if in_menu:
+
+            for event in event_list:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if new_game_button.check_collisions(mouse_pos):
+                        player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height)
+                        in_menu = False
+                    if quit_game_button.check_collisions(mouse_pos):
+                        run = False
 
             # ========== Main Menu Start ============ #
 
@@ -133,9 +135,9 @@ def main():
             # ======== UI END =========== #
 
             if player.pause:
-                player.update(dt)
+                pass
             else:
-                updatable.update(dt)
+                updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
                 for d in drawable:
                     d.draw(screen)
 
