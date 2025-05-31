@@ -53,8 +53,8 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
     fps = 60
-    font = pygame.freetype.Font(os.path.abspath("fonts/Rogbold-3llGM.otf"), 30)
-    menu_font = pygame.freetype.Font(os.path.abspath("fonts/Rogbold-3llGM.otf"), 80)
+    font = pygame.freetype.Font(os.path.realpath("fonts/Rogbold-3llGM.otf"), 30)
+    menu_font = pygame.freetype.Font(os.path.realpath("fonts/Rogbold-3llGM.otf"), 80)
 
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
