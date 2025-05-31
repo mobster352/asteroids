@@ -53,8 +53,8 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
     fps = 60
-    font = pygame.freetype.Font("./fonts/Rogbold-3llGM.otf", 30)
-    menu_font = pygame.freetype.Font("./fonts/Rogbold-3llGM.otf", 80)
+    font = pygame.freetype.Font(os.path.abspath("fonts/Rogbold-3llGM.otf"), 30)
+    menu_font = pygame.freetype.Font(os.path.abspath("fonts/Rogbold-3llGM.otf"), 80)
 
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
@@ -71,7 +71,7 @@ def main():
 
     quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
-    filename = "./data/data.pickle"
+    filename = os.path.abspath("data/data.pickle")
 
     while run:
         window_size = pygame.display.get_window_size()
