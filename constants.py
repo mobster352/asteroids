@@ -13,3 +13,10 @@ PLAYER_SHOOT_SPEED = 500
 PLAYER_SHOOT_COOLDOWN = 0.3
 
 SHOT_RADIUS = 5
+
+BACKGROUND_IMAGE = "images/space.png"
+SAVE_FILE = "data/data.pickle"
+FONT_FILE = "fonts/Rogbold-3llGM.otf"
+LASER_SOUND_FILE = "sounds/laser1.ogg"
+
+ENABLE_SOUNDS = False

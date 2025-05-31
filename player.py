@@ -52,6 +52,8 @@ class Player(CircleShape):
         shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
         shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * PLAYER_SHOOT_SPEED
         self.timer = PLAYER_SHOOT_COOLDOWN
+        if ENABLE_SOUNDS:
+            pygame.mixer.Sound.play(LASER_SOUND_FILE)
 
     def __check_off_screen(self, screen_width, screen_height):
         units_off_screen = 10

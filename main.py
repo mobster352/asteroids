@@ -42,19 +42,28 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
     return player, ui
 
 def main():
+    bg = pygame.image.load(BACKGROUND_IMAGE)
+    os.environ['SDL_AUDIODRIVER'] = 'dsp'
+
     print("Starting Asteroids!")
     # print(f"Screen width: {SCREEN_WIDTH}")
     # print(f"Screen height: {SCREEN_HEIGHT}")
 
     pygame.init()
+    
+    if ENABLE_SOUNDS:
+        pygame.mixer.init()
+
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Asteroids")
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
     dt = 0
     fps = 60
-    font = pygame.freetype.Font(os.path.realpath("fonts/Rogbold-3llGM.otf"), 30)
-    menu_font = pygame.freetype.Font(os.path.realpath("fonts/Rogbold-3llGM.otf"), 80)
+
+    font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
+    menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
+    filename = os.path.abspath(SAVE_FILE)
 
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
@@ -71,17 +80,22 @@ def main():
 
     quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
-    filename = os.path.abspath("data/data.pickle")
+    if ENABLE_SOUNDS:
+        print(f"Mixer init: {pygame.mixer.get_init()}")
 
     while run:
         window_size = pygame.display.get_window_size()
         dynamic_screen_width = window_size[0]
         dynamic_screen_height = window_size[1]
 
+        bg = pygame.transform.smoothscale(bg, (dynamic_screen_width, dynamic_screen_height))
+
         event_list = pygame.event.get()
 
         for event in event_list:
             if event.type == pygame.QUIT:
+                if ENABLE_SOUNDS:
+                    pygame.mixer.quit()
                 run = False
 
         process_keys(event_list, player)
@@ -100,6 +114,7 @@ def main():
             # ========== Main Menu Start ============ #
 
             screen.fill("black")
+            screen.blit(bg, (0,0))
 
             menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
             # rect - (x, y, w, h)
@@ -124,6 +139,7 @@ def main():
             # ========== Game Start ========= #
             
             screen.fill("black")
+            screen.blit(bg, (0,0))
 
             # ======== UI START =========== #
 
