@@ -20,7 +20,7 @@ class Client():
                         print("[Client] Server disconnected.")
                         break
                     decoded = json.loads(request.decode('utf-8'))
-                    print(f"[Client] Server says: {decoded}")
+                    # print(f"[Client] Server says: {decoded}")
                     self.peer_data = decoded
 
                     action = decoded.get("action")

@@ -46,7 +46,7 @@ def handle_client(conn, addr, index):
                 print(f"[!] Error receiving from Client {index+1}: {e}")
                 break
 
-            time.sleep(0.1)  # Reduce CPU usage
+            time.sleep(0.01)  # Reduce CPU usage
     finally:
         with lock:
             clients[index] = None
