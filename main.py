@@ -18,6 +18,8 @@ import threading
 from client import Client
 from peer import Peer
 
+import time
+
 def process_keys(event_list, player):
     for event in event_list:
         if event.type == pygame.KEYDOWN:
@@ -26,15 +28,13 @@ def process_keys(event_list, player):
 
 def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_height, filename):
     Player.containers = (updatable, drawable)
-    player = Player(screen_width / 2, screen_height / 2)
-    peer = Peer(screen_width / 2, screen_height / 2)
-
     Asteroid.containers = (asteroids, updatable, drawable)
-
     AsteroidField.containers = (updatable,)
-    AsteroidField(screen_width, screen_height)
-
     Shot.containers = (shots, updatable, drawable)
+
+    player = Player(screen_width / 2, screen_height / 2, "white")
+    
+    AsteroidField(screen_width, screen_height)
 
     ui = UI(0, 0)
 
@@ -44,7 +44,34 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
             loaded_data = pickle.load(f)
             ui.update_high_score(loaded_data["high_score"])
 
-    return player, ui, peer
+    return player, ui
+
+def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, screen_height, filename, client):
+    Player.containers = (updatable, drawable)
+    Asteroid.containers = (asteroids, updatable, drawable)
+    Shot.containers = (shots, updatable, drawable)
+
+    asteroid_field = None
+    if client.num_connections == 2:
+        player = Player(screen_width / 2 + 100, screen_height / 2, "cyan")
+
+        AsteroidField.containers = (updatable,)
+        asteroid_field = AsteroidField(screen_width, screen_height)
+        # client.asteroids = asteroid_field.asteroids
+    else:
+        player = Player(screen_width / 2 - 100, screen_height / 2, "cyan")
+
+    peer = Peer(screen_width / 2, screen_height / 2, "teal")
+
+    ui = UI(0, 0)
+
+    # Load data
+    # if os.path.exists(filename) and os.path.getsize(filename) > 0:
+    #     with open(filename, "rb") as f:
+    #         loaded_data = pickle.load(f)
+    #         ui.update_high_score(loaded_data["high_score"])
+
+    return player, ui, peer, asteroid_field
 
 def main():
     bg = pygame.image.load(BACKGROUND_IMAGE)
@@ -65,8 +92,6 @@ def main():
     clock = pygame.time.Clock()
     dt = 0
     fps = 60
-
-    host, port = '127.0.0.1', 65432
 
     font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
     menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
@@ -120,14 +145,19 @@ def main():
                     if new_game_button.check_collisions(mouse_pos):
                         player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
                         in_menu = False
+                        is_multiplayer_game = False
                     elif quit_game_button.check_collisions(mouse_pos):
                         run = False
                     elif client_connect_button.check_collisions(mouse_pos):
-                        client = Client(host, port)
+                        client = Client(HOST, PORT)
                         client_thread = threading.Thread(target=client.connect)
                         client_thread.daemon = True
                         client_thread.start()
-                        player, ui, peer = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
+
+                        time.sleep(0.01)
+
+                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+
                         in_menu = False
                         is_multiplayer_game = True
 
@@ -189,11 +219,11 @@ def main():
                     drawable.empty()
                     
                     # Save data
-                    if ui.get_high_score() < ui.get_score():
-                        ui.update_high_score(ui.get_score())
-                        with open(filename, "wb") as f:
-                            data = {"high_score": ui.get_high_score()}
-                            pickle.dump(data, f)
+                    # if ui.get_high_score() < ui.get_score():
+                    #     ui.update_high_score(ui.get_score())
+                    #     with open(filename, "wb") as f:
+                    #         data = {"high_score": ui.get_high_score()}
+                    #         pickle.dump(data, f)
                     in_menu = True
                     client.kill_client()
                 for s in shots:
@@ -207,10 +237,10 @@ def main():
             client.update_rotation(player.get_rotation())
 
             # update peer
-            if client.peer_data is not None:
-                peer.update_position(client.peer_data["position"])
-                peer.update_rotation(client.peer_data["rotation"])
-                peer.draw(screen)
+            if client.peer_data.get("is_connected"):
+                peer.update_position(client.peer_data.get("position"))
+                peer.update_rotation(client.peer_data.get("rotation"))
+                peer.draw_peer(screen)
 
             pygame.display.flip()
 

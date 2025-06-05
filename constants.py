@@ -25,3 +25,6 @@ ENGINE_SOUND_FILE = "sounds/engine1.wav"
 SHIP_EXPLOSION = "sounds/explosion6.ogg"
 
 ENABLE_SOUNDS = False
+
+HOST = '127.0.0.1'
+PORT = 65432

@@ -4,8 +4,9 @@ from circleshape import CircleShape
 from shot import Shot
 
 class Player(CircleShape):
-    def __init__(self, x, y):
+    def __init__(self, x, y, color):
         super().__init__(x, y, PLAYER_RADIUS)
+        self.color = color
         self.rotation = 0
         self.timer = 0
         self.pause = False
@@ -20,7 +21,7 @@ class Player(CircleShape):
         return [a, b, c]
 
     def draw(self, screen):
-        return pygame.draw.polygon(screen, "white", self.triangle(), width=2)
+        return pygame.draw.polygon(screen, self.color, self.triangle(), width=2)
 
     def rotate(self, dt):
         self.rotation += PLAYER_TURN_SPEED * dt

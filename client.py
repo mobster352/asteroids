@@ -8,7 +8,8 @@ class Client():
         self.position = None
         self.rotation = 0
         self.peer_data = None
-        self.run = True
+        self.run = True,
+        self.num_connections = 0
 
     def connect(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -21,11 +22,16 @@ class Client():
                         break
                     decoded = json.loads(request.decode('utf-8'))
                     # print(f"[Client] Server says: {decoded}")
-                    self.peer_data = decoded
+                    self.peer_data = decoded.get("peer_data")
+                    self.num_connections = decoded.get("num_connections")
 
-                    action = decoded.get("action")
+                    action = self.peer_data.get("action")
                     if action == "get_position":
-                        data = {"position": self.position, "rotation": self.rotation}
+                        data = {
+                            "position": self.position, 
+                            "rotation": self.rotation, 
+                            "is_connected": True
+                            }
                         s.sendall(json.dumps(data).encode('utf-8'))
                 except Exception as e:
                     print(f"[Client] Error: {e}")
