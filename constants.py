@@ -17,6 +17,11 @@ SHOT_RADIUS = 5
 BACKGROUND_IMAGE = "images/space.png"
 SAVE_FILE = "data/data.pickle"
 FONT_FILE = "fonts/Rogbold-3llGM.otf"
+
 LASER_SOUND_FILE = "sounds/laser1.ogg"
+EXPLOSION_L_SOUND_FILE = "sounds/explosion3.ogg"
+EXPLOSION_S_SOUND_FILE = "sounds/explosion2.ogg"
+ENGINE_SOUND_FILE = "sounds/engine1.wav"
+SHIP_EXPLOSION = "sounds/explosion6.ogg"
 
 ENABLE_SOUNDS = False

@@ -17,6 +17,8 @@ class Asteroid(CircleShape):
     def split(self):
         self.kill()
         if self.radius <= ASTEROID_MIN_RADIUS:
+            if ENABLE_SOUNDS:
+                pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
             return
         angle = random.uniform(20, 50)
 
@@ -30,6 +32,9 @@ class Asteroid(CircleShape):
 
         new_asteroid_1.velocity = vector1 * 1.2
         new_asteroid_2.velocity = vector2 * 1.2
+
+        if ENABLE_SOUNDS:
+            pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
 
     def __check_off_screen(self, screen_width, screen_height):
         units_off_screen = 100

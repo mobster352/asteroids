@@ -14,6 +14,10 @@ import os
 import pickle
 from button import Button
 
+import threading
+from client import Client
+from peer import Peer
+
 def process_keys(event_list, player):
     for event in event_list:
         if event.type == pygame.KEYDOWN:
@@ -23,6 +27,7 @@ def process_keys(event_list, player):
 def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_height, filename):
     Player.containers = (updatable, drawable)
     player = Player(screen_width / 2, screen_height / 2)
+    peer = Peer(screen_width / 2, screen_height / 2)
 
     Asteroid.containers = (asteroids, updatable, drawable)
 
@@ -39,11 +44,11 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
             loaded_data = pickle.load(f)
             ui.update_high_score(loaded_data["high_score"])
 
-    return player, ui
+    return player, ui, peer
 
 def main():
     bg = pygame.image.load(BACKGROUND_IMAGE)
-    os.environ['SDL_AUDIODRIVER'] = 'dsp'
+    #os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
     print("Starting Asteroids!")
     # print(f"Screen width: {SCREEN_WIDTH}")
@@ -61,6 +66,8 @@ def main():
     dt = 0
     fps = 60
 
+    host, port = '127.0.0.1', 65432
+
     font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
     menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
     filename = os.path.abspath(SAVE_FILE)
@@ -71,6 +78,7 @@ def main():
     shots = pygame.sprite.Group()
 
     player = None
+    peer = None
 
     run = True
 
@@ -78,7 +86,11 @@ def main():
 
     new_game_button = Button("New Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
-    quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
+    client_connect_button = Button("Join Server", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
+
+    quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 3)
+
+    is_multiplayer_game = False
 
     if ENABLE_SOUNDS:
         print(f"Mixer init: {pygame.mixer.get_init()}")
@@ -108,8 +120,16 @@ def main():
                     if new_game_button.check_collisions(mouse_pos):
                         player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
                         in_menu = False
-                    if quit_game_button.check_collisions(mouse_pos):
+                    elif quit_game_button.check_collisions(mouse_pos):
                         run = False
+                    elif client_connect_button.check_collisions(mouse_pos):
+                        client = Client(host, port)
+                        client_thread = threading.Thread(target=client.connect)
+                        client_thread.daemon = True
+                        client_thread.start()
+                        player, ui, peer = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
+                        in_menu = False
+                        is_multiplayer_game = True
 
             # ========== Main Menu Start ============ #
 
@@ -127,12 +147,76 @@ def main():
             new_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
             new_game_button.draw_button("white", "blue", font, screen)
 
+            client_connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            client_connect_button.draw_button("white", "blue", font, screen)
+
             quit_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
             quit_game_button.draw_button("white", "red", font, screen)
 
             pygame.display.flip()
             dt = clock.tick(fps) / 1000
             # ========== Main Menu End ========== #
+
+        elif is_multiplayer_game:
+
+            # ========== Multiplayer Game Start ========== #
+
+            screen.fill("black")
+            screen.blit(bg, (0,0))
+
+            # ======== UI START =========== #
+
+            score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
+            screen.blit(score_surface, (20, 10))
+
+            # score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
+            # screen.blit(score_surface, (200, 10))
+
+            # ======== UI END =========== #
+
+            updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
+            for d in drawable:
+                d.draw(screen)
+
+            for a in asteroids:
+                if a.check_collisions(player):
+                    if ENABLE_SOUNDS:
+                        pygame.mixer.Sound(SHIP_EXPLOSION).play()
+                    print("Game Over!")
+                    asteroids.empty()
+                    shots.empty()
+                    updatable.empty()
+                    drawable.empty()
+                    
+                    # Save data
+                    if ui.get_high_score() < ui.get_score():
+                        ui.update_high_score(ui.get_score())
+                        with open(filename, "wb") as f:
+                            data = {"high_score": ui.get_high_score()}
+                            pickle.dump(data, f)
+                    in_menu = True
+                    client.kill_client()
+                for s in shots:
+                    if a.check_collisions(s):
+                        a.split()
+                        s.kill()
+                        ui.update_score(10)
+
+            # update client
+            client.update_position(player.get_position())
+            client.update_rotation(player.get_rotation())
+
+            # update peer
+            if client.peer_data is not None:
+                peer.update_position(client.peer_data["position"])
+                peer.update_rotation(client.peer_data["rotation"])
+                peer.draw(screen)
+
+            pygame.display.flip()
+
+            dt = clock.tick(fps) / 1000
+
+            # ========== Multiplayer Game End ========== #
 
         else:
 
@@ -160,6 +244,8 @@ def main():
 
                 for a in asteroids:
                     if a.check_collisions(player):
+                        if ENABLE_SOUNDS:
+                            pygame.mixer.Sound(SHIP_EXPLOSION).play()
                         print("Game Over!")
                         asteroids.empty()
                         shots.empty()

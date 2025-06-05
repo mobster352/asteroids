@@ -48,12 +48,16 @@ class Player(CircleShape):
 
         self.__check_off_screen(screen_width, screen_height)
 
+        if ENABLE_SOUNDS:
+            # pygame.mixer.Sound(ENGINE_SOUND_FILE).play()
+            pass
+
     def shoot(self):
         shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
         shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * PLAYER_SHOOT_SPEED
         self.timer = PLAYER_SHOOT_COOLDOWN
         if ENABLE_SOUNDS:
-            pygame.mixer.Sound.play(LASER_SOUND_FILE)
+            pygame.mixer.Sound(LASER_SOUND_FILE).play()
 
     def __check_off_screen(self, screen_width, screen_height):
         units_off_screen = 10
@@ -65,3 +69,9 @@ class Player(CircleShape):
             self.position[1] = screen_height
         elif self.position[1] >= screen_height + units_off_screen:
             self.position[1] = -units_off_screen
+
+    def get_position(self):
+        return self.position
+
+    def get_rotation(self):
+        return self.rotation
