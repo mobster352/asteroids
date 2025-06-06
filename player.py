@@ -4,7 +4,7 @@ from circleshape import CircleShape
 from shot import Shot
 
 class Player(CircleShape):
-    def __init__(self, x, y, color):
+    def __init__(self, x:int, y:int, color:str):
         super().__init__(x, y, PLAYER_RADIUS)
         self.color = color
         self.rotation = 0

@@ -3,9 +3,6 @@ import threading
 import time
 import json
 
-from asteroid import Asteroid
-from asteroidfield import AsteroidField
-
 HOST = '127.0.0.1'
 PORT = 65432
 MAX_CONNECTIONS = 2
@@ -16,30 +13,49 @@ class Client_Data():
         self.conn_addr = None  # (conn, addr)
         self.position = (0, 0)
         self.rotation = 0
-        self.is_connected = False
+        self.is_connected = False,
+        self.asteroid_data = [],
+        self.id = 0
 
     def update_data(self, decoded_json):
         self.position = decoded_json.get("position")
         self.rotation = decoded_json.get("rotation")
         self.is_connected = decoded_json.get("is_connected")
+        self.asteroid_data = decoded_json.get("asteroid_data")
+        self.id = decoded_json.get("id")
 
     def reset_data(self):
         self.conn_addr = None
         self.position = (0,0)
         self.rotation = 0
         self.is_connected = False
+        self.asteroid_data = []
+        self.id = 0
 
-def build_request(other_client):
+def build_request(client, other_client):
     global NUM_CONNECTIONS
-    return {
-        "peer_data": {
-        "action": "get_position", 
-        "position": other_client.position, 
-        "rotation": other_client.rotation, 
-        "is_connected": other_client.is_connected
-        },
-        "num_connections": NUM_CONNECTIONS
-    }
+    if client.id == 1:
+        # print(f"OTHER_ASTS: {other_client.asteroid_data}")
+        return {
+            "peer_data": {
+            "action": "get_position", 
+            "position": other_client.position, 
+            "rotation": other_client.rotation, 
+            "is_connected": other_client.is_connected
+            },
+            "num_connections": NUM_CONNECTIONS,
+            "asteroid_data": other_client.asteroid_data
+        }
+    else:
+        return {
+            "peer_data": {
+            "action": "get_position", 
+            "position": other_client.position, 
+            "rotation": other_client.rotation, 
+            "is_connected": other_client.is_connected
+            },
+            "num_connections": NUM_CONNECTIONS
+        }
 
 # Shared state
 clients = [Client_Data(), Client_Data()]
@@ -53,7 +69,7 @@ def handle_client(conn, addr, index):
         while True:
             with lock:
                 other_index = 1 - index
-                request = build_request(clients[other_index])
+                request = build_request(clients[index], clients[other_index])
             
             # Send request
             try:
@@ -64,7 +80,7 @@ def handle_client(conn, addr, index):
 
             # Receive response
             try:
-                data = conn.recv(1024)
+                data = conn.recv(8192)
                 if not data:
                     print(f"[-] Client {index+1} disconnected")
                     break

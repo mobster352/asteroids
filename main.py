@@ -34,7 +34,7 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
 
     player = Player(screen_width / 2, screen_height / 2, "white")
     
-    AsteroidField(screen_width, screen_height)
+    asteroid_field = AsteroidField(screen_width, screen_height)
 
     ui = UI(0, 0)
 
@@ -44,7 +44,7 @@ def setup_game(updatable, drawable, asteroids, shots, screen_width, screen_heigh
             loaded_data = pickle.load(f)
             ui.update_high_score(loaded_data["high_score"])
 
-    return player, ui
+    return player, ui, asteroid_field
 
 def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, screen_height, filename, client):
     Player.containers = (updatable, drawable)
@@ -57,9 +57,11 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
 
         AsteroidField.containers = (updatable,)
         asteroid_field = AsteroidField(screen_width, screen_height)
-        # client.asteroids = asteroid_field.asteroids
+        client.asteroids = asteroid_field.asteroids
+        client.id = 2
     else:
         player = Player(screen_width / 2 - 100, screen_height / 2, "cyan")
+        client.id = 1
 
     peer = Peer(screen_width / 2, screen_height / 2, "teal")
 
@@ -143,7 +145,7 @@ def main():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
                     if new_game_button.check_collisions(mouse_pos):
-                        player, ui = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
+                        player, ui, asteroid_field = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
                         in_menu = False
                         is_multiplayer_game = False
                     elif quit_game_button.check_collisions(mouse_pos):
@@ -204,9 +206,16 @@ def main():
 
             # ======== UI END =========== #
 
+            # if client.id == 1:
+            #     asteroids = client.asteroids
+
             updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
             for d in drawable:
                 d.draw(screen)
+
+            if client.id == 1:
+                for a in client.asteroids:
+                    a.draw_peer(screen)
 
             for a in asteroids:
                 if a.check_collisions(player):
@@ -227,17 +236,20 @@ def main():
                     in_menu = True
                     client.kill_client()
                 for s in shots:
-                    if a.check_collisions(s):
-                        a.split()
+                    if a.check_collisions(s) and client.id == 2:
+                        client.asteroids = a.split(asteroid_field.asteroids)
                         s.kill()
                         ui.update_score(10)
+                    # check client 1 shots on client 2 from the server
+                    # send shots both ways / client 1 and client 2
+                    
 
             # update client
             client.update_position(player.get_position())
             client.update_rotation(player.get_rotation())
 
             # update peer
-            if client.peer_data.get("is_connected"):
+            if client.peer_data is not None and client.peer_data.get("is_connected"):
                 peer.update_position(client.peer_data.get("position"))
                 peer.update_rotation(client.peer_data.get("rotation"))
                 peer.draw_peer(screen)
@@ -291,7 +303,7 @@ def main():
                         in_menu = True
                     for s in shots:
                         if a.check_collisions(s):
-                            a.split()
+                            asteroid_field.asteroids = a.split(asteroid_field.asteroids)
                             s.kill()
                             ui.update_score(10)
                 pygame.display.flip()
