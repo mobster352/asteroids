@@ -11,3 +11,8 @@ class Shot(CircleShape):
 
     def update(self, dt, screen_width, screen_height):
         self.position += (self.velocity * dt)
+
+    def kill_shot(self, shots):
+        self.kill()
+        new_shots = shots.remove(self)
+        return new_shots

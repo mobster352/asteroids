@@ -10,6 +10,8 @@ class Player(CircleShape):
         self.rotation = 0
         self.timer = 0
         self.pause = False
+        self.shots = []
+        self.shot_timer = 0
 
     # in the player class
     def triangle(self):
@@ -31,6 +33,11 @@ class Player(CircleShape):
 
         if self.timer > 0:
             self.timer -= dt
+        if self.shot_timer > 0:
+            self.shot_timer -= dt
+        # elif self.shot_timer <= 0 and len(self.shots) > 0:
+        #     # print("remove")
+        #     self.shots.pop(0)
 
         if keys[pygame.K_a]:
             self.rotate(-dt)
@@ -56,7 +63,9 @@ class Player(CircleShape):
     def shoot(self):
         shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
         shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * PLAYER_SHOOT_SPEED
+        self.shots.append(shot)
         self.timer = PLAYER_SHOOT_COOLDOWN
+        self.shot_timer = 0.15
         if ENABLE_SOUNDS:
             pygame.mixer.Sound(LASER_SOUND_FILE).play()
 
@@ -76,3 +85,7 @@ class Player(CircleShape):
 
     def get_rotation(self):
         return self.rotation
+
+    def get_shots(self):
+        shots = self.shots
+        return shots

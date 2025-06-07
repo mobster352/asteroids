@@ -19,6 +19,7 @@ class Asteroid(CircleShape):
         self.__check_off_screen(screen_width, screen_height)
 
     def split(self, asteroids):
+        print("hit")
         self.kill()
         asteroids.remove(self)
         if self.radius <= ASTEROID_MIN_RADIUS:
@@ -34,6 +35,7 @@ class Asteroid(CircleShape):
 
         new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius)
         new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius)
+
         asteroids.append(new_asteroid_1)
         asteroids.append(new_asteroid_2)
 

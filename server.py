@@ -16,6 +16,7 @@ class Client_Data():
         self.is_connected = False,
         self.asteroid_data = [],
         self.id = 0
+        self.shots_data = []
 
     def update_data(self, decoded_json):
         self.position = decoded_json.get("position")
@@ -23,6 +24,7 @@ class Client_Data():
         self.is_connected = decoded_json.get("is_connected")
         self.asteroid_data = decoded_json.get("asteroid_data")
         self.id = decoded_json.get("id")
+        self.shots_data = decoded_json.get("shots_data")
 
     def reset_data(self):
         self.conn_addr = None
@@ -31,6 +33,7 @@ class Client_Data():
         self.is_connected = False
         self.asteroid_data = []
         self.id = 0
+        shots_data = []
 
 def build_request(client, other_client):
     global NUM_CONNECTIONS
@@ -41,7 +44,8 @@ def build_request(client, other_client):
             "action": "get_position", 
             "position": other_client.position, 
             "rotation": other_client.rotation, 
-            "is_connected": other_client.is_connected
+            "is_connected": other_client.is_connected,
+            "shots_data": other_client.shots_data
             },
             "num_connections": NUM_CONNECTIONS,
             "asteroid_data": other_client.asteroid_data
@@ -52,7 +56,8 @@ def build_request(client, other_client):
             "action": "get_position", 
             "position": other_client.position, 
             "rotation": other_client.rotation, 
-            "is_connected": other_client.is_connected
+            "is_connected": other_client.is_connected,
+            "shots_data": other_client.shots_data
             },
             "num_connections": NUM_CONNECTIONS
         }
