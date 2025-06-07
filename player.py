@@ -12,6 +12,7 @@ class Player(CircleShape):
         self.pause = False
         self.shots = []
         self.shot_timer = 0
+        self.shot_id = 0
 
     # in the player class
     def triangle(self):
@@ -61,8 +62,9 @@ class Player(CircleShape):
             pass
 
     def shoot(self):
-        shot = Shot(self.position.x, self.position.y, SHOT_RADIUS)
+        shot = Shot(self.position.x, self.position.y, SHOT_RADIUS, self.shot_id)
         shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * PLAYER_SHOOT_SPEED
+        self.shot_id += 1
         self.shots.append(shot)
         self.timer = PLAYER_SHOOT_COOLDOWN
         self.shot_timer = 0.15
@@ -87,5 +89,4 @@ class Player(CircleShape):
         return self.rotation
 
     def get_shots(self):
-        shots = self.shots
-        return shots
+        return [s for s in self.shots if s.alive()]

@@ -4,8 +4,8 @@ from constants import *
 from shot import Shot
 
 class Shot_Peer(Shot):
-    def __init__(self, x, y, radius):
-        super().__init__(x, y, radius)
+    def __init__(self, x, y, radius, id):
+        super().__init__(x, y, radius, id)
 
     def draw(self, screen):
         pass

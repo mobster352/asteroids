@@ -19,12 +19,12 @@ class Asteroid(CircleShape):
         self.__check_off_screen(screen_width, screen_height)
 
     def split(self, asteroids):
-        print("hit")
-        self.kill()
+        # print("hit")
         asteroids.remove(self)
         if self.radius <= ASTEROID_MIN_RADIUS:
             if ENABLE_SOUNDS:
                 pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
+            self.kill()
             return asteroids
         angle = random.uniform(20, 50)
 
@@ -36,15 +36,16 @@ class Asteroid(CircleShape):
         new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius)
         new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius)
 
-        asteroids.append(new_asteroid_1)
-        asteroids.append(new_asteroid_2)
-
         new_asteroid_1.velocity = vector1 * 1.2
         new_asteroid_2.velocity = vector2 * 1.2
+
+        asteroids.append(new_asteroid_1)
+        asteroids.append(new_asteroid_2)
 
         if ENABLE_SOUNDS:
             pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
 
+        self.kill()
         return asteroids
 
     def __check_off_screen(self, screen_width, screen_height):

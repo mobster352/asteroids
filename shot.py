@@ -3,8 +3,9 @@ from circleshape import CircleShape
 from constants import *
 
 class Shot(CircleShape):
-    def __init__(self, x, y, radius):
+    def __init__(self, x, y, radius, id):
         super().__init__(x, y, radius)
+        self.id = id
 
     def draw(self, screen):
         return pygame.draw.circle(screen, "white", self.position, self.radius, width=2)
@@ -13,6 +14,4 @@ class Shot(CircleShape):
         self.position += (self.velocity * dt)
 
     def kill_shot(self, shots):
-        self.kill()
-        new_shots = shots.remove(self)
-        return new_shots
+        shots.remove(self)

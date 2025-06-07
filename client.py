@@ -8,8 +8,6 @@ import threading
 from asteroid_peer import Asteroid_Peer
 from shot_peer import Shot_Peer
 
-lock = threading.Lock()
-
 class Client():
     def __init__(self, host, port):
         self.host = host
@@ -24,7 +22,8 @@ class Client():
         self.peer_shots = []
         self.shots = []
 
-    def connect(self):
+    def connect(self, lock):
+        peer_shot_id = 0
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(5.0)
             try:
@@ -59,15 +58,19 @@ class Client():
                             # print(f"[Client] shots_data: {serialized_shots}")
                             self.peer_shots = []
                             if serialized_shots is not None:
+                                # existing_peer_shot_ids = {shot.id for shot in self.peer_shots}
                                 for shot in serialized_shots:
-                                    if shot:
+                                    # if shot["id"] not in existing_peer_shot_ids:
+                                    # if shot:
                                         self.peer_shots.append(
                                             Shot_Peer(
                                                 shot.get("position_x"),
                                                 shot.get("position_y"),
-                                                shot.get("radius")
+                                                shot.get("radius"),
+                                                shot.get("id")
                                             )
                                         )
+                                        peer_shot_id += 1
                                 # print(f"Shot_Peers: {self.peer_shots}")
 
                         if self.peer_data:
@@ -81,7 +84,8 @@ class Client():
                                         {
                                             "position_x": shot.position.x,
                                             "position_y": shot.position.y,
-                                            "radius": shot.radius
+                                            "radius": shot.radius,
+                                            "id": shot.id
                                         }
                                     )
                         if self.id == 2:
@@ -112,7 +116,7 @@ class Client():
                                 "shots_data": serialized_shots
                                 }
                         s.sendall(json.dumps(data).encode('utf-8'))
-                    time.sleep(0.01)
+                    time.sleep(0.01) # 100 FPS?
                         # print(f"client.shots: {self.shots}")
                         # print(f"peer.shots: {self.peer_shots}")
                 except Exception as e:

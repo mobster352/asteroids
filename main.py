@@ -55,6 +55,7 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
     Player.containers = (updatable, drawable)
     Asteroid.containers = (asteroids, updatable, drawable)
     Shot.containers = (shots, updatable, drawable)
+    Shot_Peer.containers = (shots, updatable, drawable)
 
     asteroid_field = None
 
@@ -100,7 +101,7 @@ def main():
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
     dt = 0
-    fps = 60
+    fps = 120
 
     font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
     menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
@@ -159,7 +160,7 @@ def main():
                         run = False
                     elif client_connect_button.check_collisions(mouse_pos):
                         client = Client(HOST, PORT)
-                        client_thread = threading.Thread(target=client.connect)
+                        client_thread = threading.Thread(target=client.connect, args=(lock,))
                         client_thread.daemon = True
                         client_thread.start()
 
@@ -216,6 +217,15 @@ def main():
             # if client.id == 1:
             #     asteroids = client.asteroids
 
+            with lock:
+                shots.empty()
+                # shots.add(client.shots)
+                shots.add([s for s in client.shots if s.alive()])
+                shots.add([s for s in client.peer_shots if s.alive()])
+                # shots.add(client.peer_shots)
+                asteroids.empty()
+                asteroids.add([a for a in client.asteroids if a.alive()])
+
             updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
             for d in drawable:
                 d.draw(screen)
@@ -231,11 +241,20 @@ def main():
                     if not s.alive():
                         continue
                     s.draw_peer(screen)
+
+            # print(f"Shots on screen: {len(shots)}")
+            # print(f"Client shots: {len(client.shots)}")
+            # print(f"Peer shots: {len(client.peer_shots)}")
+
+            # print(f"Client Asteroids: {len(asteroids)}")
+            # print(f"Peer Asteroids: {len(client.asteroids)}")
                         
             with lock:
                 if player.shots:
                     client.shots = player.get_shots()
                 else:
+                    for s in client.shots:
+                        s.kill()  # remove from sprite groups (shots, drawable, etc.)
                     client.shots = []
                 
                 hit = False
@@ -262,8 +281,6 @@ def main():
                                     if client.peer_shots:
                                         if s in client.peer_shots:
                                             client.peer_shots.remove(s)
-                                    else:
-                                        s.kill()
                                 else:
                                     # print(s.position)
                                     if client.shots:
@@ -271,9 +288,8 @@ def main():
                                             client.shots.remove(s)
                                     if s in player.shots:
                                         s.kill_shot(player.shots)
-                                    else:
-                                        s.kill()
-                                    ui.update_score(10)
+                                s.kill()
+                                ui.update_score(10)
                                 break
                         if hit:
                             break
@@ -297,14 +313,13 @@ def main():
                                 continue
                             if a.check_collisions(s):
                                 hit = True
+                                a.split(asteroid_field.asteroids)
                                 if a in client.asteroids:
-                                    client.asteroids = a.split(asteroid_field.asteroids)
+                                    client.asteroids = asteroid_field.asteroids
                                 if isinstance(s, Shot_Peer):
                                     if client.peer_shots:
                                         if s in client.peer_shots:
                                             client.peer_shots.remove(s)
-                                    else:
-                                        s.kill()
                                 else:
                                     # print(s.position)
                                     if client.shots:
@@ -312,9 +327,8 @@ def main():
                                             client.shots.remove(s)
                                     if s in player.shots:
                                         s.kill_shot(player.shots)
-                                    else:
-                                        s.kill()
-                                    ui.update_score(10)
+                                s.kill()
+                                ui.update_score(10)
                                 break
                         if hit:
                             break
