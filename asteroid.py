@@ -4,8 +4,9 @@ import random
 from constants import *
 
 class Asteroid(CircleShape):
-    def __init__(self, x, y, radius):
+    def __init__(self, x, y, radius, id):
         super().__init__(x, y, radius)
+        self.id = id
 
     # @classmethod
     # def new_asteroid(cls, position:pygame.Vector2, radius:int):
@@ -18,14 +19,14 @@ class Asteroid(CircleShape):
         self.position += (self.velocity * dt)
         self.__check_off_screen(screen_width, screen_height)
 
-    def split(self, asteroids):
+    def split(self, asteroid_field):
         # print("hit")
-        asteroids.remove(self)
+        asteroid_field.asteroids.remove(self)
         if self.radius <= ASTEROID_MIN_RADIUS:
             if ENABLE_SOUNDS:
                 pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
             self.kill()
-            return asteroids
+            return asteroid_field.asteroids
         angle = random.uniform(20, 50)
 
         vector1 = self.velocity.rotate(angle)
@@ -33,20 +34,20 @@ class Asteroid(CircleShape):
 
         new_radius = self.radius - ASTEROID_MIN_RADIUS
 
-        new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius)
-        new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius)
+        new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
+        new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
 
         new_asteroid_1.velocity = vector1 * 1.2
         new_asteroid_2.velocity = vector2 * 1.2
 
-        asteroids.append(new_asteroid_1)
-        asteroids.append(new_asteroid_2)
+        asteroid_field.asteroids.append(new_asteroid_1)
+        asteroid_field.asteroids.append(new_asteroid_2)
 
         if ENABLE_SOUNDS:
             pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
 
         self.kill()
-        return asteroids
+        return asteroid_field.asteroids
 
     def __check_off_screen(self, screen_width, screen_height):
         units_off_screen = 100

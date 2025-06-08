@@ -3,6 +3,8 @@ import threading
 import time
 import json
 
+from constants import *
+
 HOST = '127.0.0.1'
 PORT = 65432
 MAX_CONNECTIONS = 2
@@ -17,6 +19,9 @@ class Client_Data():
         self.asteroid_data = [],
         self.id = 0
         self.shots_data = []
+
+        self.action = GET_ACTION
+        self.destroy_asteroid_id = None
 
     def update_data(self, decoded_json):
         self.position = decoded_json.get("position")
@@ -40,6 +45,7 @@ def build_request(client, other_client):
     if client.id == 1:
         # print(f"OTHER_ASTS: {other_client.asteroid_data}")
         return {
+            "action": GET_ACTION,
             "peer_data": {
             "action": "get_position", 
             "position": other_client.position, 
@@ -52,6 +58,7 @@ def build_request(client, other_client):
         }
     else:
         return {
+            "action": GET_ACTION,
             "peer_data": {
             "action": "get_position", 
             "position": other_client.position, 
@@ -74,11 +81,22 @@ def handle_client(conn, addr, index):
         while True:
             with lock:
                 other_index = 1 - index
-                request = build_request(clients[index], clients[other_index])
+
+                if clients[index].action == GET_ACTION:
+                    request = build_request(clients[index], clients[other_index])
+                elif clients[index].action == DESTROY_ACTION:
+                    request = {
+                        "action": DESTROY_ACTION,
+                        "destroy_asteroid_id": clients[index].destroy_asteroid_id
+                    }
+                else:
+                    request = build_request(clients[index], clients[other_index])
             
             # Send request
             try:
                 conn.sendall(json.dumps(request).encode('utf-8'))
+                clients[index].action = GET_ACTION
+                clients[index].destroy_asteroid_id = None
             except (BrokenPipeError, ConnectionResetError) as e:
                 print(f"[!] Client {index+1} send error: {e}")
                 break
@@ -90,8 +108,14 @@ def handle_client(conn, addr, index):
                     print(f"[-] Client {index+1} disconnected")
                     break
                 decoded = json.loads(data.decode('utf-8'))
-                with lock:
-                    clients[index].update_data(decoded)
+
+                decoded_action = decoded.get("action")
+                if decoded_action == DESTROY_ACTION:
+                    clients[other_index].action = DESTROY_ACTION
+                    clients[other_index].destroy_asteroid_id = decoded.get("destroy_asteroid_id")
+                else:
+                    with lock:
+                        clients[index].update_data(decoded)
                     # print(f"[#] Client {index+1} Position: {value}")
             except Exception as e:
                 print(f"[!] Error receiving from Client {index+1}: {e}")

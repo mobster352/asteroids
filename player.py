@@ -36,9 +36,9 @@ class Player(CircleShape):
             self.timer -= dt
         if self.shot_timer > 0:
             self.shot_timer -= dt
-        # elif self.shot_timer <= 0 and len(self.shots) > 0:
-        #     # print("remove")
-        #     self.shots.pop(0)
+        elif self.shot_timer <= 0 and len(self.shots) > 0:
+            # print("remove")
+            self.shots.pop(0)
 
         if keys[pygame.K_a]:
             self.rotate(-dt)
@@ -62,12 +62,12 @@ class Player(CircleShape):
             pass
 
     def shoot(self):
-        shot = Shot(self.position.x, self.position.y, SHOT_RADIUS, self.shot_id)
+        shot = Shot(self.position.x, self.position.y, SHOT_RADIUS, self.shot_id, False)
         shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * PLAYER_SHOOT_SPEED
         self.shot_id += 1
         self.shots.append(shot)
         self.timer = PLAYER_SHOOT_COOLDOWN
-        self.shot_timer = 0.15
+        self.shot_timer = 1
         if ENABLE_SOUNDS:
             pygame.mixer.Sound(LASER_SOUND_FILE).play()
 

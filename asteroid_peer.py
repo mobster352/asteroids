@@ -6,8 +6,8 @@ from constants import *
 from asteroid import Asteroid
 
 class Asteroid_Peer(Asteroid):
-    def __init__(self, position, radius):
-        super().__init__(position.x, position.y, radius)
+    def __init__(self, position, radius, id):
+        super().__init__(position.x, position.y, radius, id)
 
     def draw(self, screen):
         pass

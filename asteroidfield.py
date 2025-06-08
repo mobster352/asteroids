@@ -33,9 +33,10 @@ class AsteroidField(pygame.sprite.Sprite):
         ]
 
         self.asteroids = []
+        self.asteroid_id = 0
 
     def spawn(self, radius, position, velocity):
-        asteroid = Asteroid(position.x, position.y, radius)
+        asteroid = Asteroid(position.x, position.y, radius, self.get_next_id())
         asteroid.velocity = velocity
         self.asteroids.append(asteroid)
 
@@ -52,3 +53,7 @@ class AsteroidField(pygame.sprite.Sprite):
             position = edge[1](random.uniform(0, 1))
             kind = random.randint(1, ASTEROID_KINDS)
             self.spawn(ASTEROID_MIN_RADIUS * kind, position, velocity)
+
+    def get_next_id(self):
+        self.asteroid_id += 1
+        return self.asteroid_id

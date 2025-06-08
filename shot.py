@@ -3,9 +3,10 @@ from circleshape import CircleShape
 from constants import *
 
 class Shot(CircleShape):
-    def __init__(self, x, y, radius, id):
+    def __init__(self, x, y, radius, id, used):
         super().__init__(x, y, radius)
-        self.id = id
+        self.id = id,
+        self.used = used
 
     def draw(self, screen):
         return pygame.draw.circle(screen, "white", self.position, self.radius, width=2)
