@@ -5,9 +5,6 @@ import json
 
 from constants import *
 
-HOST = '127.0.0.1'
-PORT = 65432
-
 class Client_Data():
     def __init__(self):
         self.conn_addr = None  # (conn, addr)
@@ -172,6 +169,9 @@ class Server():
         # Filter out loopback addresses
         filtered_ips = [ip for ip in ip_addresses if not ip.startswith("127.")]
         return filtered_ips[0] if filtered_ips else None
+
+# HOST = '127.0.0.1'
+# PORT = 65432
 
 # def main():
 #     server = Server(HOST, PORT)
