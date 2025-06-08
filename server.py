@@ -7,8 +7,6 @@ from constants import *
 
 HOST = '127.0.0.1'
 PORT = 65432
-MAX_CONNECTIONS = 2
-NUM_CONNECTIONS = 0
 
 class Client_Data():
     def __init__(self):
@@ -40,119 +38,123 @@ class Client_Data():
         self.id = 0
         shots_data = []
 
-def build_request(client, other_client):
-    global NUM_CONNECTIONS
-    if client.id == 1:
-        # print(f"OTHER_ASTS: {other_client.asteroid_data}")
-        return {
-            "action": GET_ACTION,
-            "peer_data": {
-            "action": "get_position", 
-            "position": other_client.position, 
-            "rotation": other_client.rotation, 
-            "is_connected": other_client.is_connected,
-            "shots_data": other_client.shots_data
-            },
-            "num_connections": NUM_CONNECTIONS,
-            "asteroid_data": other_client.asteroid_data
-        }
-    else:
-        return {
-            "action": GET_ACTION,
-            "peer_data": {
-            "action": "get_position", 
-            "position": other_client.position, 
-            "rotation": other_client.rotation, 
-            "is_connected": other_client.is_connected,
-            "shots_data": other_client.shots_data
-            },
-            "num_connections": NUM_CONNECTIONS
-        }
+class Server():
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.num_connections = 0
+        self.server_socket = None
+        # Shared state
+        self.clients = [Client_Data(), Client_Data()]
+        self.lock = threading.Lock()
 
-# Shared state
-clients = [Client_Data(), Client_Data()]
-lock = threading.Lock()
+    def start_server(self):
+        # Main server loop
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            self.server_socket = s
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((self.host, self.port))
+            s.listen()
+            print(f"[SERVER] Listening on {self.host}:{self.port}...")
 
-def handle_client(conn, addr, index):
-    global clients
-    global NUM_CONNECTIONS
-    print(f"[+] Client {index+1} connected: {addr}")
-    try:
-        while True:
-            with lock:
-                other_index = 1 - index
+            while True:
+                conn, addr = s.accept()
+                slot = self.find_free_slot()
+                if slot is None:
+                    print("[!] Connection refused: max clients reached")
+                    conn.close()
+                    continue
+                with self.lock:
+                    self.clients[slot].conn_addr = (conn, addr)
+                thread = threading.Thread(target=self.handle_client, args=(conn, addr, slot), daemon=True)
+                thread.start()
 
-                if clients[index].action == GET_ACTION:
-                    request = build_request(clients[index], clients[other_index])
-                elif clients[index].action == DESTROY_ACTION:
-                    request = {
-                        "action": DESTROY_ACTION,
-                        "destroy_asteroid_id": clients[index].destroy_asteroid_id
-                    }
-                else:
-                    request = build_request(clients[index], clients[other_index])
-            
-            # Send request
-            try:
-                conn.sendall(json.dumps(request).encode('utf-8'))
-                clients[index].action = GET_ACTION
-                clients[index].destroy_asteroid_id = None
-            except (BrokenPipeError, ConnectionResetError) as e:
-                print(f"[!] Client {index+1} send error: {e}")
-                break
+    def build_request(self, client, other_client):
+        if client.id == 1:
+            # print(f"OTHER_ASTS: {other_client.asteroid_data}")
+            return {
+                "action": GET_ACTION,
+                "peer_data": {
+                "action": "get_position", 
+                "position": other_client.position, 
+                "rotation": other_client.rotation, 
+                "is_connected": other_client.is_connected,
+                "shots_data": other_client.shots_data
+                },
+                "num_connections": self.num_connections,
+                "asteroid_data": other_client.asteroid_data
+            }
+        else:
+            return {
+                "action": GET_ACTION,
+                "peer_data": {
+                "action": "get_position", 
+                "position": other_client.position, 
+                "rotation": other_client.rotation, 
+                "is_connected": other_client.is_connected,
+                "shots_data": other_client.shots_data
+                },
+                "num_connections": self.num_connections
+            }
 
-            # Receive response
-            try:
-                data = conn.recv(8192)
-                if not data:
-                    print(f"[-] Client {index+1} disconnected")
+    def handle_client(self, conn, addr, index):
+        print(f"[+] Client {index+1} connected: {addr}")
+        try:
+            while True:
+                with self.lock:
+                    other_index = 1 - index
+
+                    if self.clients[index].action == GET_ACTION:
+                        request = self.build_request(self.clients[index], self.clients[other_index])
+                    elif self.clients[index].action == DESTROY_ACTION:
+                        request = {
+                            "action": DESTROY_ACTION,
+                            "destroy_asteroid_id": self.clients[index].destroy_asteroid_id
+                        }
+                    else:
+                        request = self.build_request(self.clients[index], self.clients[other_index])
+                
+                # Send request
+                try:
+                    conn.sendall(json.dumps(request).encode('utf-8'))
+                    self.clients[index].action = GET_ACTION
+                    self.clients[index].destroy_asteroid_id = None
+                except (BrokenPipeError, ConnectionResetError) as e:
+                    print(f"[!] Client {index+1} send error: {e}")
                     break
-                decoded = json.loads(data.decode('utf-8'))
 
-                decoded_action = decoded.get("action")
-                if decoded_action == DESTROY_ACTION:
-                    clients[other_index].action = DESTROY_ACTION
-                    clients[other_index].destroy_asteroid_id = decoded.get("destroy_asteroid_id")
-                else:
-                    with lock:
-                        clients[index].update_data(decoded)
-                    # print(f"[#] Client {index+1} Position: {value}")
-            except Exception as e:
-                print(f"[!] Error receiving from Client {index+1}: {e}")
-                break
+                # Receive response
+                try:
+                    data = conn.recv(8192)
+                    if not data:
+                        print(f"[-] Client {index+1} disconnected")
+                        break
+                    decoded = json.loads(data.decode('utf-8'))
 
-            time.sleep(0.01)  # Reduce CPU usage
-    finally:
-        with lock:
-            clients[index].reset_data()
-            NUM_CONNECTIONS -= 1
-            print(f"[x] Client {index+1} cleanup done.")
-        conn.close()
+                    decoded_action = decoded.get("action")
+                    if decoded_action == DESTROY_ACTION:
+                        self.clients[other_index].action = DESTROY_ACTION
+                        self.clients[other_index].destroy_asteroid_id = decoded.get("destroy_asteroid_id")
+                    else:
+                        with self.lock:
+                            self.clients[index].update_data(decoded)
+                        # print(f"[#] Client {index+1} Position: {value}")
+                except Exception as e:
+                    print(f"[!] Error receiving from Client {index+1}: {e}")
+                    break
 
-def find_free_slot():
-    with lock:
-        for i in range(MAX_CONNECTIONS):
-            if clients[i].conn_addr is None:
-                global NUM_CONNECTIONS
-                NUM_CONNECTIONS += 1
-                return i
-    return None
-
-# Main server loop
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((HOST, PORT))
-    s.listen()
-    print(f"[SERVER] Listening on {HOST}:{PORT}...")
-
-    while True:
-        conn, addr = s.accept()
-        slot = find_free_slot()
-        if slot is None:
-            print("[!] Connection refused: max clients reached")
+                time.sleep(0.01)  # Reduce CPU usage
+        finally:
+            with self.lock:
+                self.clients[index].reset_data()
+                self.num_connections -= 1
+                print(f"[x] Client {index+1} cleanup done.")
             conn.close()
-            continue
-        with lock:
-            clients[slot].conn_addr = (conn, addr)
-        thread = threading.Thread(target=handle_client, args=(conn, addr, slot), daemon=True)
-        thread.start()
+
+    def find_free_slot(self):
+        with self.lock:
+            for i in range(MAX_CONNECTIONS):
+                if self.clients[i].conn_addr is None:
+                    self.num_connections += 1
+                    return i
+        return None

@@ -16,6 +16,8 @@ import pickle
 from button import Button
 
 import threading
+
+from server import Server
 from client import Client
 from peer import Peer
 
@@ -121,13 +123,15 @@ def main():
 
     new_game_button = Button("New Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
-    client_connect_button = Button("Join Room", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
+    join_room_button = Button("Join Room", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
     quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 1.65)
 
     multiplayer_button = Button("Multiplayer", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
     create_room_button = Button("Create Room", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
+
+    main_menu_button = Button("Main Menu", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 1.65)
 
     if ENABLE_SOUNDS:
         print(f"Mixer init: {pygame.mixer.get_init()}")
@@ -160,18 +164,7 @@ def main():
                     elif quit_game_button.check_collisions(mouse_pos):
                         run = False
                     elif multiplayer_button.check_collisions(mouse_pos):
-                        pass
-                    # elif client_connect_button.check_collisions(mouse_pos):
-                    #     client = Client(HOST, PORT)
-                    #     client_thread = threading.Thread(target=client.connect, args=(lock,))
-                    #     client_thread.daemon = True
-                    #     client_thread.start()
-
-                    #     time.sleep(0.01)
-
-                    #     player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
-
-                    #     menu = IN_MULTIPLAYER_GAME
+                        menu = IN_MULTIPLAYER_MENU
 
             # ========== Main Menu Start ============ #
 
@@ -189,8 +182,8 @@ def main():
             new_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
             new_game_button.draw_button("white", "blue", font, screen)
 
-            # client_connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            # client_connect_button.draw_button("white", "blue", font, screen)
+            # join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            # join_room_button.draw_button("white", "blue", font, screen)
 
             multiplayer_button.update_button(dynamic_screen_width, dynamic_screen_height)
             multiplayer_button.draw_button("white", "blue", font, screen)
@@ -204,7 +197,68 @@ def main():
             # ========== Main Menu End ========== #
 
         elif menu == IN_MULTIPLAYER_MENU:
-            pass
+
+            for event in event_list:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = pygame.mouse.get_pos()
+                    if create_room_button.check_collisions(mouse_pos):
+                        server = Server(HOST, PORT)
+                        server_thread = threading.Thread(target=server.start_server)
+                        server_thread.daemon = True
+                        server_thread.start()
+                        time.sleep(0.01)
+
+                        client = Client(HOST, PORT)
+                        client_thread = threading.Thread(target=client.connect, args=(lock,))
+                        client_thread.daemon = True
+                        client_thread.start()
+
+                        time.sleep(0.01)
+
+                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+
+                        menu = IN_MULTIPLAYER_GAME                                                
+                    elif join_room_button.check_collisions(mouse_pos):
+                        client = Client(HOST, PORT)
+                        client_thread = threading.Thread(target=client.connect, args=(lock,))
+                        client_thread.daemon = True
+                        client_thread.start()
+
+                        time.sleep(0.01)
+
+                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+
+                        menu = IN_MULTIPLAYER_GAME
+                    elif main_menu_button.check_collisions(mouse_pos):
+                        menu = IN_MENU
+
+            # ========== Multiplayer Menu Start ============ #
+
+            screen.fill("black")
+            screen.blit(bg, (0,0))
+
+            menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
+            # rect - (x, y, w, h)
+
+            rect_width_center = rect[2] / 2
+            rect_height_center = rect[3] / 2
+
+            screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
+
+            create_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            create_room_button.draw_button("white", "blue", font, screen)
+
+            join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            join_room_button.draw_button("white", "blue", font, screen)
+
+            main_menu_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            main_menu_button.draw_button("white", "blue", font, screen)
+
+            pygame.display.flip()
+            dt = clock.tick(fps) / 1000
+
+            # ========== Multiplayer Menu End ========== #
+
 
         elif menu == IN_MULTIPLAYER_GAME:
 
