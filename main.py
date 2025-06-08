@@ -85,7 +85,7 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
 
 def main():
     bg = pygame.image.load(BACKGROUND_IMAGE)
-    #os.environ['SDL_AUDIODRIVER'] = 'dsp'
+    os.environ['SDL_AUDIODRIVER'] = 'dsp'
 
     print("Starting Asteroids!")
     # print(f"Screen width: {SCREEN_WIDTH}")
@@ -258,81 +258,43 @@ def main():
                     client.shots = []
                 
                 hit = False
-                if client.id == 1:
-                    for a in client.asteroids:
-                        if not a.alive():
+                for a in client.asteroids:
+                    if not a.alive():
+                        continue
+                    # if a.check_collisions(player):
+                    #     if ENABLE_SOUNDS:
+                    #         pygame.mixer.Sound(SHIP_EXPLOSION).play()
+                    #     print("Game Over!")
+                    #     asteroids.empty()
+                    #     shots.empty()
+                    #     updatable.empty()
+                    #     drawable.empty()
+                    #     in_menu = True
+                    #     client.kill_client()
+                    for s in shots:
+                        if not s.alive():
                             continue
-                        if a.check_collisions(player):
-                            if ENABLE_SOUNDS:
-                                pygame.mixer.Sound(SHIP_EXPLOSION).play()
-                            print("Game Over!")
-                            asteroids.empty()
-                            shots.empty()
-                            updatable.empty()
-                            drawable.empty()
-                            in_menu = True
-                            client.kill_client()
-                        for s in shots:
-                            if not s.alive():
-                                continue
-                            if a.check_collisions(s):
-                                hit = True
-                                if isinstance(s, Shot_Peer):
-                                    if client.peer_shots:
-                                        if s in client.peer_shots:
-                                            client.peer_shots.remove(s)
-                                else:
-                                    # print(s.position)
-                                    if client.shots:
-                                        if s in client.shots:
-                                            client.shots.remove(s)
-                                    if s in player.shots:
-                                        s.kill_shot(player.shots)
-                                s.kill()
+                        if a.check_collisions(s):
+                            hit = True
+                            if client.id == 2:
+                                client.asteroids = a.split(asteroid_field.asteroids)
+                            if isinstance(s, Shot_Peer):
+                                if client.peer_shots:
+                                    if s in client.peer_shots:
+                                        client.peer_shots.remove(s)
+                            else:
+                                # print(s.position)
+                                if client.shots:
+                                    if s in client.shots:
+                                        client.shots.remove(s)
+                                if s in player.shots:
+                                    s.kill_shot(player.shots)
                                 ui.update_score(10)
-                                break
-                        if hit:
+                            s.kill()
                             break
-                        # print("break")
-                else:
-                    for a in asteroids:
-                        if not a.alive():
-                            continue
-                        if a.check_collisions(player):
-                            if ENABLE_SOUNDS:
-                                pygame.mixer.Sound(SHIP_EXPLOSION).play()
-                            print("Game Over!")
-                            asteroids.empty()
-                            shots.empty()
-                            updatable.empty()
-                            drawable.empty()
-                            in_menu = True
-                            client.kill_client()
-                        for s in shots:
-                            if not s.alive():
-                                continue
-                            if a.check_collisions(s):
-                                hit = True
-                                a.split(asteroid_field.asteroids)
-                                if a in client.asteroids:
-                                    client.asteroids = asteroid_field.asteroids
-                                if isinstance(s, Shot_Peer):
-                                    if client.peer_shots:
-                                        if s in client.peer_shots:
-                                            client.peer_shots.remove(s)
-                                else:
-                                    # print(s.position)
-                                    if client.shots:
-                                        if s in client.shots:
-                                            client.shots.remove(s)
-                                    if s in player.shots:
-                                        s.kill_shot(player.shots)
-                                s.kill()
-                                ui.update_score(10)
-                                break
-                        if hit:
-                            break
-                        # print("break")
+                    if hit:
+                        break
+                    # print("break")
                         
                 # update client
                 client.update_position(player.get_position())
