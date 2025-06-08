@@ -117,15 +117,17 @@ def main():
 
     run = True
 
-    in_menu = True
+    menu = IN_MENU
 
     new_game_button = Button("New Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
-    client_connect_button = Button("Join Server", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
+    client_connect_button = Button("Join Room", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
 
-    quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 3)
+    quit_game_button = Button("Quit Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 1.65)
 
-    is_multiplayer_game = False
+    multiplayer_button = Button("Multiplayer", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2)
+
+    create_room_button = Button("Create Room", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
     if ENABLE_SOUNDS:
         print(f"Mixer init: {pygame.mixer.get_init()}")
@@ -147,29 +149,29 @@ def main():
 
         process_keys(event_list, player)
 
-        if in_menu:
+        if menu == IN_MENU:
 
             for event in event_list:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
                     if new_game_button.check_collisions(mouse_pos):
                         player, ui, asteroid_field = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
-                        in_menu = False
-                        is_multiplayer_game = False
+                        menu = IN_SINGLEPLAYER_GAME
                     elif quit_game_button.check_collisions(mouse_pos):
                         run = False
-                    elif client_connect_button.check_collisions(mouse_pos):
-                        client = Client(HOST, PORT)
-                        client_thread = threading.Thread(target=client.connect, args=(lock,))
-                        client_thread.daemon = True
-                        client_thread.start()
+                    elif multiplayer_button.check_collisions(mouse_pos):
+                        pass
+                    # elif client_connect_button.check_collisions(mouse_pos):
+                    #     client = Client(HOST, PORT)
+                    #     client_thread = threading.Thread(target=client.connect, args=(lock,))
+                    #     client_thread.daemon = True
+                    #     client_thread.start()
 
-                        time.sleep(0.01)
+                    #     time.sleep(0.01)
 
-                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+                    #     player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
 
-                        in_menu = False
-                        is_multiplayer_game = True
+                    #     menu = IN_MULTIPLAYER_GAME
 
             # ========== Main Menu Start ============ #
 
@@ -187,17 +189,24 @@ def main():
             new_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
             new_game_button.draw_button("white", "blue", font, screen)
 
-            client_connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            client_connect_button.draw_button("white", "blue", font, screen)
+            # client_connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            # client_connect_button.draw_button("white", "blue", font, screen)
+
+            multiplayer_button.update_button(dynamic_screen_width, dynamic_screen_height)
+            multiplayer_button.draw_button("white", "blue", font, screen)
 
             quit_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
             quit_game_button.draw_button("white", "red", font, screen)
 
             pygame.display.flip()
             dt = clock.tick(fps) / 1000
+
             # ========== Main Menu End ========== #
 
-        elif is_multiplayer_game:
+        elif menu == IN_MULTIPLAYER_MENU:
+            pass
+
+        elif menu == IN_MULTIPLAYER_GAME:
 
             # ========== Multiplayer Game Start ========== #
 
@@ -285,7 +294,7 @@ def main():
                         shots.empty()
                         updatable.empty()
                         drawable.empty()
-                        in_menu = True
+                        menu = IN_MENU
                         client.kill_client()
                     for s in shots:
                         # print(f"Shot id: {s.id}")
@@ -381,7 +390,7 @@ def main():
                             with open(filename, "wb") as f:
                                 data = {"high_score": ui.get_high_score()}
                                 pickle.dump(data, f)
-                        in_menu = True
+                        menu = IN_MENU
                     for s in shots:
                         if a.check_collisions(s):
                             asteroid_field.asteroids = a.split(asteroid_field)
