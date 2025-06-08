@@ -219,7 +219,7 @@ def main():
 
                         menu = IN_MULTIPLAYER_GAME                                                
                     elif join_room_button.check_collisions(mouse_pos):
-                        client = Client(HOST, PORT)
+                        client = Client(CLIENT_HOST, PORT)
                         client_thread = threading.Thread(target=client.connect, args=(lock,))
                         client_thread.daemon = True
                         client_thread.start()

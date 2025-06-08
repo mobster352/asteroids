@@ -26,7 +26,11 @@ SHIP_EXPLOSION = "sounds/explosion6.ogg"
 
 ENABLE_SOUNDS = False
 
-HOST = '127.0.0.1'
+HOST = '0.0.0.0' 
+CLIENT_HOST = '192.168.0.100'
+#'192.168.0.100' 
+#'172.30.75.51' 
+#'127.0.0.1'
 PORT = 65432
 
 GET_ACTION = 0

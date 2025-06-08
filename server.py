@@ -49,6 +49,8 @@ class Server():
         self.lock = threading.Lock()
 
     def start_server(self):
+        print("Local IP address:", self.get_local_ip())
+        print("Local IP address (filtered):", self.get_local_ip_filtered())
         # Main server loop
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.server_socket = s
@@ -158,3 +160,22 @@ class Server():
                     self.num_connections += 1
                     return i
         return None
+
+    def get_local_ip(self):
+        host = socket.gethostname()  # Get the hostname
+        local_ip = socket.gethostbyname(host)  # Resolve hostname to IP
+        return local_ip
+
+    def get_local_ip_filtered(self):
+        local_hostname = socket.gethostname()
+        ip_addresses = socket.gethostbyname_ex(local_hostname)[2]
+        # Filter out loopback addresses
+        filtered_ips = [ip for ip in ip_addresses if not ip.startswith("127.")]
+        return filtered_ips[0] if filtered_ips else None
+
+# def main():
+#     server = Server(HOST, PORT)
+#     server.start_server()
+
+# if __name__ == "__main__":
+#     main()
