@@ -118,6 +118,10 @@ def main():
     peer = None
 
     run = True
+    server = None
+    client = None
+    server_thread = None
+    client_thread = None
 
     menu = IN_MENU
 
@@ -136,325 +140,341 @@ def main():
     if ENABLE_SOUNDS:
         print(f"Mixer init: {pygame.mixer.get_init()}")
 
-    while run:
-        window_size = pygame.display.get_window_size()
-        dynamic_screen_width = window_size[0]
-        dynamic_screen_height = window_size[1]
+    try:
+        while run:
+            window_size = pygame.display.get_window_size()
+            dynamic_screen_width = window_size[0]
+            dynamic_screen_height = window_size[1]
 
-        bg = pygame.transform.smoothscale(bg, (dynamic_screen_width, dynamic_screen_height))
+            bg = pygame.transform.smoothscale(bg, (dynamic_screen_width, dynamic_screen_height))
 
-        event_list = pygame.event.get()
-
-        for event in event_list:
-            if event.type == pygame.QUIT:
-                if ENABLE_SOUNDS:
-                    pygame.mixer.quit()
-                run = False
-
-        process_keys(event_list, player)
-
-        if menu == IN_MENU:
+            event_list = pygame.event.get()
 
             for event in event_list:
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if new_game_button.check_collisions(mouse_pos):
-                        player, ui, asteroid_field = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
-                        menu = IN_SINGLEPLAYER_GAME
-                    elif quit_game_button.check_collisions(mouse_pos):
-                        run = False
-                    elif multiplayer_button.check_collisions(mouse_pos):
-                        menu = IN_MULTIPLAYER_MENU
+                if event.type == pygame.QUIT:
+                    if ENABLE_SOUNDS:
+                        pygame.mixer.quit()
+                    run = False
 
-            # ========== Main Menu Start ============ #
+            process_keys(event_list, player)
 
-            screen.fill("black")
-            screen.blit(bg, (0,0))
+            if menu == IN_MENU:
 
-            menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
-            # rect - (x, y, w, h)
+                for event in event_list:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if new_game_button.check_collisions(mouse_pos):
+                            player, ui, asteroid_field = setup_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename)
+                            menu = IN_SINGLEPLAYER_GAME
+                        elif quit_game_button.check_collisions(mouse_pos):
+                            run = False
+                        elif multiplayer_button.check_collisions(mouse_pos):
+                            menu = IN_MULTIPLAYER_MENU
 
-            rect_width_center = rect[2] / 2
-            rect_height_center = rect[3] / 2
+                # ========== Main Menu Start ============ #
 
-            screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
+                screen.fill("black")
+                screen.blit(bg, (0,0))
 
-            new_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            new_game_button.draw_button("white", "blue", font, screen)
+                menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
+                # rect - (x, y, w, h)
 
-            # join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            # join_room_button.draw_button("white", "blue", font, screen)
+                rect_width_center = rect[2] / 2
+                rect_height_center = rect[3] / 2
 
-            multiplayer_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            multiplayer_button.draw_button("white", "blue", font, screen)
+                screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
 
-            quit_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            quit_game_button.draw_button("white", "red", font, screen)
+                new_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                new_game_button.draw_button("white", "blue", font, screen)
 
-            pygame.display.flip()
-            dt = clock.tick(fps) / 1000
+                # join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                # join_room_button.draw_button("white", "blue", font, screen)
 
-            # ========== Main Menu End ========== #
+                multiplayer_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                multiplayer_button.draw_button("white", "blue", font, screen)
 
-        elif menu == IN_MULTIPLAYER_MENU:
+                quit_game_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                quit_game_button.draw_button("white", "red", font, screen)
 
-            for event in event_list:
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    if create_room_button.check_collisions(mouse_pos):
-                        server = Server(HOST, PORT)
-                        server_thread = threading.Thread(target=server.start_server)
-                        server_thread.daemon = True
-                        server_thread.start()
-                        time.sleep(0.01)
+                pygame.display.flip()
+                dt = clock.tick(fps) / 1000
 
-                        client = Client(HOST, PORT)
-                        client_thread = threading.Thread(target=client.connect, args=(lock,))
-                        client_thread.daemon = True
-                        client_thread.start()
+                # ========== Main Menu End ========== #
 
-                        time.sleep(0.01)
+            elif menu == IN_MULTIPLAYER_MENU:
 
-                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+                for event in event_list:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if create_room_button.check_collisions(mouse_pos):
+                            server = Server(HOST, PORT)
+                            server_thread = threading.Thread(target=server.start_server)
+                            server_thread.daemon = True
+                            server_thread.start()
+                            time.sleep(0.01)
 
-                        menu = IN_MULTIPLAYER_GAME                                                
-                    elif join_room_button.check_collisions(mouse_pos):
-                        client = Client(CLIENT_HOST, PORT)
-                        client_thread = threading.Thread(target=client.connect, args=(lock,))
-                        client_thread.daemon = True
-                        client_thread.start()
+                            client = Client(CLIENT_HOST, PORT)
+                            client_thread = threading.Thread(target=client.connect, args=(lock,))
+                            client_thread.daemon = True
+                            client_thread.start()
 
-                        time.sleep(0.01)
+                            time.sleep(0.01)
 
-                        player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+                            player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
 
-                        menu = IN_MULTIPLAYER_GAME
-                    elif main_menu_button.check_collisions(mouse_pos):
-                        menu = IN_MENU
+                            menu = IN_MULTIPLAYER_GAME                                                
+                        elif join_room_button.check_collisions(mouse_pos):
+                            client = Client(CLIENT_HOST, PORT)
+                            client_thread = threading.Thread(target=client.connect, args=(lock,))
+                            client_thread.daemon = True
+                            client_thread.start()
 
-            # ========== Multiplayer Menu Start ============ #
+                            time.sleep(0.01)
 
-            screen.fill("black")
-            screen.blit(bg, (0,0))
+                            player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
 
-            menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
-            # rect - (x, y, w, h)
+                            menu = IN_MULTIPLAYER_GAME
+                        elif main_menu_button.check_collisions(mouse_pos):
+                            menu = IN_MENU
 
-            rect_width_center = rect[2] / 2
-            rect_height_center = rect[3] / 2
+                # ========== Multiplayer Menu Start ============ #
 
-            screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
+                screen.fill("black")
+                screen.blit(bg, (0,0))
 
-            create_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            create_room_button.draw_button("white", "blue", font, screen)
+                menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
+                # rect - (x, y, w, h)
 
-            join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            join_room_button.draw_button("white", "blue", font, screen)
+                rect_width_center = rect[2] / 2
+                rect_height_center = rect[3] / 2
 
-            main_menu_button.update_button(dynamic_screen_width, dynamic_screen_height)
-            main_menu_button.draw_button("white", "blue", font, screen)
+                screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
 
-            pygame.display.flip()
-            dt = clock.tick(fps) / 1000
+                create_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                create_room_button.draw_button("white", "blue", font, screen)
 
-            # ========== Multiplayer Menu End ========== #
+                join_room_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                join_room_button.draw_button("white", "blue", font, screen)
+
+                main_menu_button.update_button(dynamic_screen_width, dynamic_screen_height)
+                main_menu_button.draw_button("white", "blue", font, screen)
+
+                pygame.display.flip()
+                dt = clock.tick(fps) / 1000
+
+                # ========== Multiplayer Menu End ========== #
 
 
-        elif menu == IN_MULTIPLAYER_GAME:
+            elif menu == IN_MULTIPLAYER_GAME:
 
-            # ========== Multiplayer Game Start ========== #
+                for event in event_list:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if quit_game_button.check_collisions(mouse_pos):
+                            run = False
 
-            screen.fill("black")
-            screen.blit(bg, (0,0))
+                # ========== Multiplayer Game Start ========== #
 
-            # ======== UI START =========== #
+                screen.fill("black")
+                screen.blit(bg, (0,0))
 
-            score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
-            screen.blit(score_surface, (20, 10))
+                # ======== UI START =========== #
 
-            # score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
-            # screen.blit(score_surface, (200, 10))
+                score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
+                screen.blit(score_surface, (20, 10))
 
-            # ======== UI END =========== #
+                # score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
+                # screen.blit(score_surface, (200, 10))
 
-            # if client.id == 1:
-            #     asteroids = client.asteroids
+                # ======== UI END =========== #
 
-            with lock:
-                if client.id == 1:
-                    for s in client.shots:
-                        if s.alive():
-                            # print(f"kill s: {s.id, s.used}")
-                            if s.used:
-                                # print(f"kill s: {s.id}")
-                                s.kill()
+                # if client.id == 1:
+                #     asteroids = client.asteroids
 
-                shots.empty()
-                # shots.add(client.shots)
-                shots.add(*[s for s in client.shots if s.alive()])
-                
-                shots.add(*[s for s in client.peer_shots if s.alive()])
-                # shots.add(client.peer_shots)
-                # for s in shots.sprites():
-                #     # if isinstance(s, Shot_Peer):
-                #     print(f"shots: {s.id}")
-                asteroids.empty()
-                asteroids.add(*[a for a in client.asteroids if a.alive()])
+                with lock:
+                    if client.id == 1:
+                        for s in client.shots:
+                            if s.alive():
+                                # print(f"kill s: {s.id, s.used}")
+                                if s.used:
+                                    # print(f"kill s: {s.id}")
+                                    s.kill()
 
-            updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
-            for d in drawable:
-                d.draw(screen)
+                    shots.empty()
+                    # shots.add(client.shots)
+                    shots.add(*[s for s in client.shots if s.alive()])
+                    
+                    shots.add(*[s for s in client.peer_shots if s.alive()])
+                    # shots.add(client.peer_shots)
+                    # for s in shots.sprites():
+                    #     # if isinstance(s, Shot_Peer):
+                    #     print(f"shots: {s.id}")
+                    asteroids.empty()
+                    asteroids.add(*[a for a in client.asteroids if a.alive()])
 
-            if client.id == 1:
-                for a in client.asteroids:
-                    if not a.alive():
-                        continue
-                    a.draw_peer(screen)
-
-            if client.peer_shots:
-                for s in client.peer_shots:
-                    if not s.alive():
-                        continue
-                    s.draw_peer(screen)
-
-            # print(f"Shots on screen: {len(shots)}")
-            # print(f"Client shots: {len(client.shots)}")
-            # print(f"Peer shots: {len(client.peer_shots)}")
-
-            # print(f"Client Asteroids: {len(asteroids)}")
-            # print(f"Peer Asteroids: {len(client.asteroids)}")
-                        
-            with lock:
-                if player.shots:
-                    client.shots = player.get_shots()
-                else:
-                    for s in client.shots:
-                        s.kill()  # remove from sprite groups (shots, drawable, etc.)
-                    client.shots = []
-                
-                hit = False
-                for a in client.asteroids:
-                    if not a.alive():
-                        continue
-                    if a.id == client.destroy_asteroid_id and client.id == 2:
-                        client.asteroids = a.split(asteroid_field)
-                        client.destroy_asteroid_id = None
-                        continue
-                    if a.check_collisions(player):
-                        if ENABLE_SOUNDS:
-                            pygame.mixer.Sound(SHIP_EXPLOSION).play()
-                        print("Game Over!")
-                        asteroids.empty()
-                        shots.empty()
-                        updatable.empty()
-                        drawable.empty()
-                        menu = IN_MENU
-                        client.kill_client()
-                    for s in shots:
-                        # print(f"Shot id: {s.id}")
-                        if not s.alive():
-                            continue
-                        if a.check_collisions(s):
-                            hit = True
-                            if client.id == 2:
-                                client.asteroids = a.split(asteroid_field)
-                                s.used = True                                
-                                if isinstance(s, Shot_Peer):
-                                    if client.peer_shots:
-                                        if s in client.peer_shots:
-                                            client.peer_shots.remove(s)
-                                else:
-                                    # print(s.position)
-                                    if client.shots:
-                                        if s in client.shots:
-                                            client.shots.remove(s)
-                                    if s in player.shots:
-                                        s.kill_shot(player.shots)
-                                    ui.update_score(10)
-                                s.kill()
-                                break
-                            else:
-                                # client 1 needs to give client 2 the destroyed shot
-                                # then client 1 can kill
-                                # if s.used:
-                                #     s.kill()
-                                client.destroy_asteroid(a.id)
-                                s.kill()
-                    if hit:
-                        break
-                    # print("break")
-                        
-                # update client
-                client.update_position(player.get_position())
-                client.update_rotation(player.get_rotation())
-
-                # update peer
-                if client.peer_data is not None and client.peer_data.get("is_connected"):
-                    peer.update_position(client.peer_data.get("position"))
-                    peer.update_rotation(client.peer_data.get("rotation"))
-                    peer.draw_peer(screen)
-
-            # for s in player.shots:
-            #     print(s.position)
-            # print("break")
-
-            pygame.display.flip()
-
-            dt = clock.tick(fps) / 1000
-
-            # ========== Multiplayer Game End ========== #
-
-        else:
-
-            # ========== Game Start ========= #
-            
-            screen.fill("black")
-            screen.blit(bg, (0,0))
-
-            # ======== UI START =========== #
-
-            score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
-            screen.blit(score_surface, (20, 10))
-
-            score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
-            screen.blit(score_surface, (200, 10))
-
-            # ======== UI END =========== #
-
-            if player.pause:
-                pass
-            else:
                 updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
                 for d in drawable:
                     d.draw(screen)
 
-                for a in asteroids:
-                    if a.check_collisions(player):
-                        if ENABLE_SOUNDS:
-                            pygame.mixer.Sound(SHIP_EXPLOSION).play()
-                        print("Game Over!")
-                        asteroids.empty()
-                        shots.empty()
-                        updatable.empty()
-                        drawable.empty()
-                        
-                        # Save data
-                        if ui.get_high_score() < ui.get_score():
-                            ui.update_high_score(ui.get_score())
-                            with open(filename, "wb") as f:
-                                data = {"high_score": ui.get_high_score()}
-                                pickle.dump(data, f)
-                        menu = IN_MENU
-                    for s in shots:
-                        if a.check_collisions(s):
-                            asteroid_field.asteroids = a.split(asteroid_field)
-                            s.kill()
-                            ui.update_score(10)
+                if client.id == 1:
+                    for a in client.asteroids:
+                        if not a.alive():
+                            continue
+                        a.draw_peer(screen)
+
+                if client.peer_shots:
+                    for s in client.peer_shots:
+                        if not s.alive():
+                            continue
+                        s.draw_peer(screen)
+
+                # print(f"Shots on screen: {len(shots)}")
+                # print(f"Client shots: {len(client.shots)}")
+                # print(f"Peer shots: {len(client.peer_shots)}")
+
+                # print(f"Client Asteroids: {len(asteroids)}")
+                # print(f"Peer Asteroids: {len(client.asteroids)}")
+                            
+                with lock:
+                    if player.shots:
+                        client.shots = player.get_shots()
+                    else:
+                        for s in client.shots:
+                            s.kill()  # remove from sprite groups (shots, drawable, etc.)
+                        client.shots = []
+                    
+                    hit = False
+                    for a in client.asteroids:
+                        if not a.alive():
+                            continue
+                        if a.id == client.destroy_asteroid_id and client.id == 2:
+                            client.asteroids = a.split(asteroid_field)
+                            client.destroy_asteroid_id = None
+                            continue
+                        if a.check_collisions(player):
+                            if ENABLE_SOUNDS:
+                                pygame.mixer.Sound(SHIP_EXPLOSION).play()
+                            print("Game Over!")
+                            asteroids.empty()
+                            shots.empty()
+                            updatable.empty()
+                            drawable.empty()
+                            menu = IN_MENU
+                            client.kill_client()
+                        for s in shots:
+                            # print(f"Shot id: {s.id}")
+                            if not s.alive():
+                                continue
+                            if a.check_collisions(s):
+                                hit = True
+                                if client.id == 2:
+                                    client.asteroids = a.split(asteroid_field)
+                                    s.used = True                                
+                                    if isinstance(s, Shot_Peer):
+                                        if client.peer_shots:
+                                            if s in client.peer_shots:
+                                                client.peer_shots.remove(s)
+                                    else:
+                                        # print(s.position)
+                                        if client.shots:
+                                            if s in client.shots:
+                                                client.shots.remove(s)
+                                        if s in player.shots:
+                                            s.kill_shot(player.shots)
+                                        ui.update_score(10)
+                                    s.kill()
+                                    break
+                                else:
+                                    # client 1 needs to give client 2 the destroyed shot
+                                    # then client 1 can kill
+                                    # if s.used:
+                                    #     s.kill()
+                                    client.destroy_asteroid(a.id)
+                                    s.kill()
+                        if hit:
+                            break
+                        # print("break")
+                            
+                    # update client
+                    client.update_position(player.get_position())
+                    client.update_rotation(player.get_rotation())
+
+                    # update peer
+                    if client.peer_data is not None and client.peer_data.get("is_connected"):
+                        peer.update_position(client.peer_data.get("position"))
+                        peer.update_rotation(client.peer_data.get("rotation"))
+                        peer.draw_peer(screen)
+
+                # for s in player.shots:
+                #     print(s.position)
+                # print("break")
+
                 pygame.display.flip()
 
-            dt = clock.tick(fps) / 1000
+                dt = clock.tick(fps) / 1000
 
-            # ============= Game End ============ #
+                # ========== Multiplayer Game End ========== #
+
+            else:
+
+                # ========== Game Start ========= #
+                
+                screen.fill("black")
+                screen.blit(bg, (0,0))
+
+                # ======== UI START =========== #
+
+                score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
+                screen.blit(score_surface, (20, 10))
+
+                score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
+                screen.blit(score_surface, (200, 10))
+
+                # ======== UI END =========== #
+
+                if player.pause:
+                    pass
+                else:
+                    updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
+                    for d in drawable:
+                        d.draw(screen)
+
+                    for a in asteroids:
+                        if a.check_collisions(player):
+                            if ENABLE_SOUNDS:
+                                pygame.mixer.Sound(SHIP_EXPLOSION).play()
+                            print("Game Over!")
+                            asteroids.empty()
+                            shots.empty()
+                            updatable.empty()
+                            drawable.empty()
+                            
+                            # Save data
+                            if ui.get_high_score() < ui.get_score():
+                                ui.update_high_score(ui.get_score())
+                                with open(filename, "wb") as f:
+                                    data = {"high_score": ui.get_high_score()}
+                                    pickle.dump(data, f)
+                            menu = IN_MENU
+                        for s in shots:
+                            if a.check_collisions(s):
+                                asteroid_field.asteroids = a.split(asteroid_field)
+                                s.kill()
+                                ui.update_score(10)
+                    pygame.display.flip()
+
+                dt = clock.tick(fps) / 1000
+
+                # ============= Game End ============ #
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if client:
+            client.disconnect()
+            client_thread.join()
+        if server:
+            server.disconnect()
+            server_thread.join()
 
 if __name__ == "__main__":
     main()

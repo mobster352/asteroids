@@ -51,22 +51,28 @@ class Server():
         # Main server loop
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.server_socket = s
+            s.settimeout(30.0)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((self.host, self.port))
             s.listen()
             print(f"[SERVER] Listening on {self.host}:{self.port}...")
 
             while True:
-                conn, addr = s.accept()
-                slot = self.find_free_slot()
-                if slot is None:
-                    print("[!] Connection refused: max clients reached")
-                    conn.close()
+                try:
+                    conn, addr = s.accept()
+                    slot = self.find_free_slot()
+                    if slot is None:
+                        print("[!] Connection refused: max clients reached")
+                        conn.close()
+                        continue
+                    with self.lock:
+                        self.clients[slot].conn_addr = (conn, addr)
+                    thread = threading.Thread(target=self.handle_client, args=(conn, addr, slot), daemon=True)
+                    thread.start()
+                except socket.timeout:
                     continue
-                with self.lock:
-                    self.clients[slot].conn_addr = (conn, addr)
-                thread = threading.Thread(target=self.handle_client, args=(conn, addr, slot), daemon=True)
-                thread.start()
+                except OSError:
+                    break # socket was closed
 
     def build_request(self, client, other_client):
         if client.id == 1:
@@ -169,6 +175,15 @@ class Server():
         # Filter out loopback addresses
         filtered_ips = [ip for ip in ip_addresses if not ip.startswith("127.")]
         return filtered_ips[0] if filtered_ips else None
+
+    def disconnect(self):
+        try:
+            temp_socket = socket.create_connection((self.host, self.port), timeout=1)
+            temp_socket.close()
+        except:
+            pass
+        self.server_socket.close()
+        print("Server closed")
 
 # HOST = '127.0.0.1'
 # PORT = 65432

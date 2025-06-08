@@ -14,6 +14,7 @@ class Client():
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.client_socket = None
         self.position = None
         self.rotation = 0
         self.peer_data = None
@@ -29,6 +30,7 @@ class Client():
     def connect(self, lock):
         peer_shot_id = 0
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            self.client_socket = s
             s.settimeout(5.0)
             try:
                 s.connect((self.host, self.port))
@@ -143,6 +145,10 @@ class Client():
                     time.sleep(0.01) # 100 FPS?
                         # print(f"client.shots: {self.shots}")
                         # print(f"peer.shots: {self.peer_shots}")
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break # socket was closed
                 except Exception as e:
                     print(f"[Client] Error: {e}")
                     break
@@ -160,3 +166,12 @@ class Client():
         # print(f"DESTROY_SHOT: {id}")
         self.action = DESTROY_ACTION
         self.destroy_asteroid_id = id
+
+    def disconnect(self):
+        try:
+            temp_socket = socket.create_connection((self.host, self.port), timeout=1)
+            temp_socket.close()
+        except:
+            pass
+        self.client_socket.close()
+        print("Client Closed")
