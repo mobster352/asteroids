@@ -180,10 +180,11 @@ class Server():
         try:
             temp_socket = socket.create_connection((self.host, self.port), timeout=1)
             temp_socket.close()
-        except:
-            pass
-        self.server_socket.close()
-        print("Server closed")
+        except ConnectionRefusedError:
+            print("Connection refused.")
+        finally:
+            self.server_socket.close()
+            print("Server closed")
 
 # HOST = '127.0.0.1'
 # PORT = 65432

@@ -107,6 +107,7 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
         client = None
     player = None
     peer = None
+    time.sleep(0.2)
     if server:
         server.disconnect()
         if server_thread:
