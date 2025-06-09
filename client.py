@@ -154,6 +154,7 @@ class Client():
             self.client_socket.settimeout(30.0)
             try:
                 self.client_socket.connect((self.host, self.port))
+                self.is_server_alive = True
             except Exception as e:
                 print(f"[Client] Connection failed: {e}")
                 return 
