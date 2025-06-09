@@ -69,14 +69,14 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
     with lock:
         if client.num_connections == 2:
             player = Player(screen_width / 2 + 100, screen_height / 2, "cyan")
-
-            AsteroidField.containers = (updatable,)
-            asteroid_field = AsteroidField(screen_width, screen_height)
-            client.asteroids = asteroid_field.asteroids
             client.id = 2
         else:
             player = Player(screen_width / 2 - 100, screen_height / 2, "cyan")
             client.id = 1
+
+            AsteroidField.containers = (updatable,)
+            asteroid_field = AsteroidField(screen_width, screen_height)
+            client.asteroids = asteroid_field.asteroids
 
     peer = Peer(screen_width / 2, screen_height / 2, "teal")
 
@@ -89,6 +89,32 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
     #         ui.update_high_score(loaded_data["high_score"])
 
     return player, ui, peer, asteroid_field
+
+def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game):
+    if ENABLE_SOUNDS:
+        pygame.mixer.Sound(SHIP_EXPLOSION).play()
+    print("Game Over!")
+    asteroids.empty()
+    shots.empty()
+    updatable.empty()
+    drawable.empty()
+    menu = IN_MENU
+    if client:
+        client.kill_client()
+        client.disconnect()
+        if client_thread:
+            client_thread.join()
+        client = None
+    player = None
+    peer = None
+    if server:
+        server.disconnect()
+        if server_thread:
+            server_thread.join()
+        server = None
+    start_game = False
+    return asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game
+
 
 def main():
     bg = pygame.image.load(BACKGROUND_IMAGE)
@@ -141,6 +167,7 @@ def main():
     client_thread = None
 
     menu = IN_MENU
+    start_game = False
 
     new_game_button = Button("New Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
@@ -409,154 +436,145 @@ def main():
 
 
             elif menu == IN_MULTIPLAYER_GAME:
+                if client and client.num_connections == 2:
+                    start_game = True
 
-                # ========== Multiplayer Game Start ========== #
+                    # ========== Multiplayer Game Start ========== #
 
-                for event in event_list:
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        mouse_pos = pygame.mouse.get_pos()
-                        if quit_game_button.check_collisions(mouse_pos):
-                            run = False
+                    for event in event_list:
+                        if event.type == pygame.MOUSEBUTTONDOWN:
+                            mouse_pos = pygame.mouse.get_pos()
+                            if quit_game_button.check_collisions(mouse_pos):
+                                run = False
 
-                screen.fill("black")
-                screen.blit(bg, (0,0))
+                    screen.fill("black")
+                    screen.blit(bg, (0,0))
 
-                # ======== UI START =========== #
+                    # ======== UI START =========== #
 
-                score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
-                screen.blit(score_surface, (20, 10))
+                    score_surface, rect = font.render(f"Score: {ui.get_score()}", "white", (0,0,0))
+                    screen.blit(score_surface, (20, 10))
 
-                # score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
-                # screen.blit(score_surface, (200, 10))
+                    # score_surface, rect = font.render(f"High Score: {ui.get_high_score()}", "white", (0,0,0))
+                    # screen.blit(score_surface, (200, 10))
 
-                # ======== UI END =========== #
+                    # ======== UI END =========== #
 
-                # if client.id == 1:
-                #     asteroids = client.asteroids
+                    # if client.id == 1:
+                    #     asteroids = client.asteroids
 
-                with lock:
-                    if client.id == 1:
-                        for s in client.shots:
-                            if s.alive():
-                                if s.used:
-                                    s.kill()
+                    with lock:
+                        if client.id == 2:
+                            for s in client.shots:
+                                if s.alive():
+                                    if s.used:
+                                        s.kill()
 
-                    shots.empty()
-                    shots.add(*[s for s in client.shots if s.alive()])
-                    
-                    shots.add(*[s for s in client.peer_shots if s.alive()])
-                    asteroids.empty()
-                    asteroids.add(*[a for a in client.asteroids if a.alive()])
+                        shots.empty()
+                        shots.add(*[s for s in client.shots if s.alive()])
+                        
+                        shots.add(*[s for s in client.peer_shots if s.alive()])
+                        asteroids.empty()
+                        asteroids.add(*[a for a in client.asteroids if a.alive()])
 
-                updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
-                for d in drawable:
-                    d.draw(screen)
+                    updatable.update(dt, dynamic_screen_width, dynamic_screen_height)
+                    for d in drawable:
+                        d.draw(screen)
 
-                if client.id == 1:
-                    for a in client.asteroids:
-                        if not a.alive():
-                            continue
-                        a.draw_peer(screen)
+                    if client.id == 2:
+                        for a in client.asteroids:
+                            if not a.alive():
+                                continue
+                            a.draw_peer(screen)
 
-                if client.peer_shots:
-                    for s in client.peer_shots:
-                        if not s.alive():
-                            continue
-                        s.draw_peer(screen)
-
-                # print(f"Shots on screen: {len(shots)}")
-                # print(f"Client shots: {len(client.shots)}")
-                # print(f"Peer shots: {len(client.peer_shots)}")
-
-                # print(f"Client Asteroids: {len(asteroids)}")
-                # print(f"Peer Asteroids: {len(client.asteroids)}")
-                            
-                with lock:
-                    if player.shots:
-                        client.shots = player.get_shots()
-                    else:
-                        for s in client.shots:
-                            s.kill()  # remove from sprite groups (shots, drawable, etc.)
-                        client.shots = []
-                    
-                    hit = False
-                    for a in client.asteroids:
-                        if not a.alive():
-                            continue
-                        if a.id == client.destroy_asteroid_id and client.id == 2:
-                            client.asteroids = a.split(asteroid_field)
-                            client.destroy_asteroid_id = None
-                            continue
-                        if a.check_collisions(player):
-                            if ENABLE_SOUNDS:
-                                pygame.mixer.Sound(SHIP_EXPLOSION).play()
-                            print("Game Over!")
-                            asteroids.empty()
-                            shots.empty()
-                            updatable.empty()
-                            drawable.empty()
-                            menu = IN_MENU
-                            if client:
-                                client.kill_client()
-                                client.disconnect()
-                                if client_thread:
-                                    client_thread.join()
-                            player = None
-                            peer = None
-                            if server:
-                                server.disconnect()
-                                if server_thread:
-                                    server_thread.join()
-                            break
-                        for s in shots:
+                    if client.peer_shots:
+                        for s in client.peer_shots:
                             if not s.alive():
                                 continue
-                            if a.check_collisions(s):
-                                hit = True
-                                if client.id == 2:
-                                    client.asteroids = a.split(asteroid_field)
-                                    s.used = True                                
-                                    if isinstance(s, Shot_Peer):
-                                        if client.peer_shots:
-                                            if s in client.peer_shots:
-                                                client.peer_shots.remove(s)
+                            s.draw_peer(screen)
+
+                    # print(f"Shots on screen: {len(shots)}")
+                    # print(f"Client shots: {len(client.shots)}")
+                    # print(f"Peer shots: {len(client.peer_shots)}")
+
+                    # print(f"Client Asteroids: {len(asteroids)}")
+                    # print(f"Peer Asteroids: {len(client.asteroids)}")
+                                
+                    with lock:
+                        if player.shots:
+                            client.shots = player.get_shots()
+                        else:
+                            for s in client.shots:
+                                s.kill()  # remove from sprite groups (shots, drawable, etc.)
+                            client.shots = []
+                        
+                        hit = False
+                        for a in client.asteroids:
+                            if not a.alive():
+                                continue
+                            if a.id == client.destroy_asteroid_id and client.id == 1:
+                                client.asteroids = a.split(asteroid_field)
+                                client.destroy_asteroid_id = None
+                                continue
+                            if a.check_collisions(player):
+                                asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                                break
+                            for s in shots:
+                                if not s.alive():
+                                    continue
+                                if a.check_collisions(s):
+                                    hit = True
+                                    if client.id == 1:
+                                        client.asteroids = a.split(asteroid_field)
+                                        s.used = True                                
+                                        if isinstance(s, Shot_Peer):
+                                            if client.peer_shots:
+                                                if s in client.peer_shots:
+                                                    client.peer_shots.remove(s)
+                                        else:
+                                            if client.shots:
+                                                if s in client.shots:
+                                                    client.shots.remove(s)
+                                            if s in player.shots:
+                                                s.kill_shot(player.shots)
+                                            ui.update_score(10)
+                                        s.kill()
+                                        break
                                     else:
-                                        if client.shots:
-                                            if s in client.shots:
-                                                client.shots.remove(s)
-                                        if s in player.shots:
-                                            s.kill_shot(player.shots)
                                         ui.update_score(10)
-                                    s.kill()
-                                    break
-                                else:
-                                    ui.update_score(10)
-                                    client.destroy_asteroid(a.id)
-                                    s.kill()
-                        if hit:
-                            break
-                        # print("break")
+                                        client.destroy_asteroid(a.id)
+                                        s.kill()
+                            if hit:
+                                break
+                            # print("break")
 
-                    if player:
-                        # update client
-                        client.update_position(player.get_position())
-                        client.update_rotation(player.get_rotation())
-                        # update peer
-                        if client.peer_data is not None and client.peer_data.get("is_connected"):
-                            peer.update_position(client.peer_data.get("position"))
-                            peer.update_rotation(client.peer_data.get("rotation"))
-                            peer.draw_peer(screen)
+                        if player:
+                            # update client
+                            client.update_position(player.get_position())
+                            client.update_rotation(player.get_rotation())
+                            # update peer
+                            if client.peer_data is not None and client.peer_data.get("is_connected"):
+                                peer.update_position(client.peer_data.get("position"))
+                                peer.update_rotation(client.peer_data.get("rotation"))
+                                peer.draw_peer(screen)
 
-                # for s in player.shots:
-                #     print(s.position)
-                # print("break")
+                    # for s in player.shots:
+                    #     print(s.position)
+                    # print("break")
 
-                pygame.display.flip()
+                    pygame.display.flip()
 
-                dt = clock.tick(fps) / 1000
+                    dt = clock.tick(fps) / 1000
 
-                # ========== Multiplayer Game End ========== #
-
+                    # ========== Multiplayer Game End ========== #         
+                elif client and client.num_connections == 1 and start_game:
+                    with lock:
+                        # print("here")
+                        asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                else:
+                    # print(f"client.num_connections = {client.num_connections}")
+                    # print(f"start_game = {start_game}")
+                    pass
             else:
 
                 # ========== Game Start ========= #

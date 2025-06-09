@@ -75,7 +75,7 @@ class Server():
                     break # socket was closed
 
     def build_request(self, client, other_client):
-        if client.id == 1:
+        if client.id == 2:
             # print(f"OTHER_ASTS: {other_client.asteroid_data}")
             return {
                 "action": GET_ACTION,

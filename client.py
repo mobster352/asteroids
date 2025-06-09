@@ -53,7 +53,7 @@ class Client():
                             self.num_connections = decoded.get("num_connections")
 
                             serialized_asteroids = decoded.get("asteroid_data")
-                            if self.id == 1 and serialized_asteroids is not None:
+                            if self.id == 2 and serialized_asteroids is not None:
                                 self.asteroids = []
                                 for a in serialized_asteroids:
                                     if a:
@@ -103,7 +103,7 @@ class Client():
                                                     "used": shot.used
                                                 }
                                             )
-                                if self.id == 2:
+                                if self.id == 1:
                                     serialized_asteroids = []
                                     for a in self.asteroids:
                                         if a:
