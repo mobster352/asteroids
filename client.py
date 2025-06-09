@@ -26,6 +26,7 @@ class Client():
         self.shots = []
         self.action = GET_ACTION
         self.destroy_asteroid_id = None
+        self.is_server_alive = False
 
     def connect(self, lock):
         peer_shot_id = 0
@@ -175,3 +176,13 @@ class Client():
             pass
         self.client_socket.close()
         print("Client Closed")
+
+    def ping_server(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            self.client_socket = s
+            s.settimeout(1.0)
+            try:
+                s.connect((self.host, self.port))
+                self.is_server_alive = True
+            except ConnectionRefusedError:
+                print("Connection refused. Server might not be running.")
