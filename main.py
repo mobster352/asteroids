@@ -374,8 +374,6 @@ def main():
                                 client.ping_server()
                                 time.sleep(0.1)
                                 if client.is_server_alive:
-                                    client.disconnect()
-                                    time.sleep(0.1)
                                     client_thread = threading.Thread(target=client.connect, args=(lock,))
                                     client_thread.daemon = True
                                     client_thread.start()
@@ -569,11 +567,8 @@ def main():
                     # ========== Multiplayer Game End ========== #         
                 elif client and client.num_connections == 1 and start_game:
                     with lock:
-                        # print("here")
                         asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
                 else:
-                    # print(f"client.num_connections = {client.num_connections}")
-                    # print(f"start_game = {start_game}")
                     pass
             else:
 
