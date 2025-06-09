@@ -17,7 +17,7 @@ PLAYER_SHOOT_COOLDOWN = 0.3
 
 SHOT_RADIUS = 5
 
-BACKGROUND_IMAGE = "images/space.png"
+BACKGROUND_IMAGE = "images/space3.jpg"
 SAVE_FILE = "data/data.pickle"
 FONT_FILE = "fonts/Rogbold-3llGM.otf"
 
