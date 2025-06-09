@@ -372,7 +372,7 @@ def main():
                             try:
                                 client = Client(host_input.value, int(port_input.value))
                                 client.ping_server()
-                                time.sleep(0.1)
+                                time.sleep(0.01)
                                 if client.is_server_alive:
                                     client_thread = threading.Thread(target=client.connect, args=(lock,))
                                     client_thread.daemon = True
