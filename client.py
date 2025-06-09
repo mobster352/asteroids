@@ -30,12 +30,6 @@ class Client():
 
     def __run__(self, lock):
         peer_shot_id = 0
-        self.client_socket.settimeout(30.0)
-        try:
-            self.client_socket.connect((self.host, self.port))
-        except Exception as e:
-            print(f"[Client] Connection failed: {e}")
-            return 
         while self.run:
             try:
                 request = self.client_socket.recv(8192)
@@ -157,6 +151,12 @@ class Client():
             self.__run__(lock)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.client_socket = s
+            self.client_socket.settimeout(30.0)
+            try:
+                self.client_socket.connect((self.host, self.port))
+            except Exception as e:
+                print(f"[Client] Connection failed: {e}")
+                return 
             self.__run__(lock)            
 
     def update_position(self, position):
