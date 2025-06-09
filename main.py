@@ -496,9 +496,18 @@ def main():
                             updatable.empty()
                             drawable.empty()
                             menu = IN_MENU
-                            client.kill_client()
-                            client.disconnect()
-                            client_thread.join()
+                            if client:
+                                client.kill_client()
+                                client.disconnect()
+                                if client_thread:
+                                    client_thread.join()
+                            player = None
+                            peer = None
+                            if server:
+                                server.disconnect()
+                                if server_thread:
+                                    server_thread.join()
+                            break
                         for s in shots:
                             if not s.alive():
                                 continue
@@ -527,16 +536,16 @@ def main():
                         if hit:
                             break
                         # print("break")
-                            
-                    # update client
-                    client.update_position(player.get_position())
-                    client.update_rotation(player.get_rotation())
 
-                    # update peer
-                    if client.peer_data is not None and client.peer_data.get("is_connected"):
-                        peer.update_position(client.peer_data.get("position"))
-                        peer.update_rotation(client.peer_data.get("rotation"))
-                        peer.draw_peer(screen)
+                    if player:
+                        # update client
+                        client.update_position(player.get_position())
+                        client.update_rotation(player.get_rotation())
+                        # update peer
+                        if client.peer_data is not None and client.peer_data.get("is_connected"):
+                            peer.update_position(client.peer_data.get("position"))
+                            peer.update_rotation(client.peer_data.get("rotation"))
+                            peer.draw_peer(screen)
 
                 # for s in player.shots:
                 #     print(s.position)
