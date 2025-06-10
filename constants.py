@@ -1,8 +1,8 @@
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+# SCREEN_WIDTH = 1920
+# SCREEN_HEIGHT = 1080
 
-# SCREEN_WIDTH = 1280
-# SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 
 ASTEROID_MIN_RADIUS = 20
 ASTEROID_KINDS = 3
@@ -48,3 +48,14 @@ IN_JOIN_ROOM_MENU = 4
 IN_MULTIPLAYER_GAME = 5
 
 MAX_CONNECTIONS = 2
+
+# action (unsigned_char)
+ACTION_STRUCT = '!B'  # Network byte order
+# client_id (unsigned_char), is_connected (bool)
+CLIENT_ID_STRUCT = '!B?'
+# player_position_x (float32), player_position_y (float32), player_rotation (f)
+PLAYER_STRUCT = '!fff'
+# asteroid_id (uint32), position_x (float32), position_y (float32), radius (ushort16) 
+ASTEROID_STRUCT = '!IffH'
+# shot_id (uint32), position_x (float32), position_y (float32), radius (ushort16), used (bool)
+SHOT_STRUCT = '!IffH?'

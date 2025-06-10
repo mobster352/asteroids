@@ -1,3 +1,4 @@
+import struct
 import socket
 import threading
 import time
@@ -121,7 +122,9 @@ class Server():
                 
                 # Send request
                 try:
-                    conn.sendall(json.dumps(request).encode('utf-8'))
+                    # conn.sendall(json.dumps(request).encode('utf-8'))
+                    self.send_json(conn, request)
+
                     self.clients[index].action = GET_ACTION
                     self.clients[index].destroy_asteroid_id = None
                 except (BrokenPipeError, ConnectionResetError) as e:
@@ -130,11 +133,16 @@ class Server():
 
                 # Receive response
                 try:
-                    data = conn.recv(8192)
-                    if not data:
-                        print(f"[-] Client {index+1} disconnected")
+                    # data = conn.recv(8192)
+                    # if not data:
+                    #     print(f"[-] Client {index+1} disconnected")
+                    #     break
+                    # decoded = json.loads(data.decode('utf-8'))
+
+                    decoded = self.recv_json_message(conn)
+                    if decoded is None:
+                        print("[Server] Client disconnected.")
                         break
-                    decoded = json.loads(data.decode('utf-8'))
 
                     decoded_action = decoded.get("action")
                     if decoded_action == DESTROY_ACTION:
@@ -185,6 +193,34 @@ class Server():
         finally:
             self.server_socket.close()
             print("Server closed")
+
+    def send_json(self, sock, data):
+        message = json.dumps(data).encode('utf-8')
+        length = struct.pack('!I', len(message))
+        sock.sendall(length + message)
+
+    def recvall(self, sock, n):
+        # """Helper to receive exactly n bytes or return None if connection closed."""
+        data = b''
+        while len(data) < n:
+            packet = sock.recv(n - len(data))
+            if not packet:
+                return None  # connection closed
+            data += packet
+        return data
+
+    def recv_json_message(self, sock):
+        # """Receive a single length-prefixed JSON message."""
+        raw_len = self.recvall(sock, 4)
+        if not raw_len:
+            return None  # connection closed or no data
+        msg_len = struct.unpack('!I', raw_len)[0]  # network byte order
+
+        raw_msg = self.recvall(sock, msg_len)
+        if not raw_msg:
+            return None  # connection closed during message receive
+
+        return json.loads(raw_msg)
 
 # HOST = '127.0.0.1'
 # PORT = 65432

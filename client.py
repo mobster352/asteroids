@@ -1,5 +1,6 @@
 import pygame
 
+import struct
 import socket
 import json
 import time
@@ -32,12 +33,19 @@ class Client():
         peer_shot_id = 0
         while self.run:
             try:
-                request = self.client_socket.recv(8192)
-                if not request:
+                # can only get 8192 bytes at a time
+                # request = self.client_socket.recv(8192)
+                # if not request:
+                #     print("[Client] Server disconnected.")
+                #     break
+                # decoded = json.loads(request.decode('utf-8'))
+                # print(f"[Client] Server says: {decoded}")
+
+                # unpack data from packets - variable size
+                decoded = self.recv_json_message()
+                if decoded is None:
                     print("[Client] Server disconnected.")
                     break
-                decoded = json.loads(request.decode('utf-8'))
-                # print(f"[Client] Server says: {decoded}")
                 with lock:
                     decoded_action = decoded.get("action")
                     if decoded_action == GET_ACTION:
@@ -125,13 +133,15 @@ class Client():
                                     "is_connected": True,
                                     "shots_data": serialized_shots
                                     }
-                            self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+                            # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+                            self.send_json(data)
                 elif self.action == DESTROY_ACTION:
                     data = {
                         "action": DESTROY_ACTION,
                         "destroy_asteroid_id": self.destroy_asteroid_id
                     }
-                    self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+                    # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+                    self.send_json(data)
                     self.action = GET_ACTION
                     self.destroy_asteroid_id = None
 
@@ -194,3 +204,32 @@ class Client():
             print("Connection refused. Server might not be running.")
         except Exception as e:
             print(f"Exception: {e}")
+
+    def recvall(self, n):
+        # """Helper to receive exactly n bytes or return None if connection closed."""
+        data = b''
+        while len(data) < n:
+            packet = self.client_socket.recv(n - len(data))
+            if not packet:
+                return None  # connection closed
+            data += packet
+        return data
+
+    def recv_json_message(self):
+        # """Receive a single length-prefixed JSON message."""
+        raw_len = self.recvall(4)
+        if not raw_len:
+            return None  # connection closed or no data
+        msg_len = struct.unpack('!I', raw_len)[0]  # network byte order
+
+        print(f"msg_len: {msg_len}")
+        raw_msg = self.recvall(msg_len)
+        if not raw_msg:
+            return None  # connection closed during message receive
+
+        return json.loads(raw_msg)
+
+    def send_json(self, data):
+        message = json.dumps(data).encode('utf-8')
+        length = struct.pack('!I', len(message))
+        self.client_socket.sendall(length + message)

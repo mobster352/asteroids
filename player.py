@@ -7,7 +7,7 @@ class Player(CircleShape):
     def __init__(self, x:int, y:int, color:str):
         super().__init__(x, y, PLAYER_RADIUS)
         self.color = color
-        self.rotation = 0
+        self.rotation = 0.0
         self.timer = 0
         self.pause = False
         self.shots = []

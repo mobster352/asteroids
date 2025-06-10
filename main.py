@@ -158,8 +158,8 @@ def main():
     if ENABLE_SOUNDS:
         pygame.mixer.init()
 
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME | pygame.SCALED) # borderless windowed mode
-    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # windowed mode
+    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME | pygame.SCALED | pygame.FULLSCREEN) # borderless windowed mode
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # windowed mode
     pygame.display.set_caption("Asteroids")
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
@@ -549,9 +549,9 @@ def main():
                                 client.asteroids = a.split(asteroid_field)
                                 client.destroy_asteroid_id = None
                                 continue
-                            if a.check_collisions(player):
-                                asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
-                                break
+                            # if a.check_collisions(player):
+                            #     asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                            #     break
                             for s in shots:
                                 if not s.alive():
                                     continue
@@ -680,10 +680,12 @@ def main():
             client.disconnect()
             if client_thread:
                 client_thread.join()
+                print("client thread joined")
         if server:
             server.disconnect()
             if server_thread:
                 server_thread.join()
+                print("server thread joined")
 
 if __name__ == "__main__":
     main()
