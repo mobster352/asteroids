@@ -49,13 +49,23 @@ IN_MULTIPLAYER_GAME = 5
 
 MAX_CONNECTIONS = 2
 
+MSG_HEADER = '!IB'  # 4-byte length (excluding length field), 1-byte type
 # action (unsigned_char)
 ACTION_STRUCT = '!B'  # Network byte order
 # client_id (unsigned_char), is_connected (bool)
-CLIENT_ID_STRUCT = '!B?'
+CLIENT_STRUCT = '!B?'
 # player_position_x (float32), player_position_y (float32), player_rotation (f)
 PLAYER_STRUCT = '!fff'
 # asteroid_id (uint32), position_x (float32), position_y (float32), radius (ushort16) 
 ASTEROID_STRUCT = '!IffH'
 # shot_id (uint32), position_x (float32), position_y (float32), radius (ushort16), used (bool)
 SHOT_STRUCT = '!IffH?'
+# num_connections (unsigned char)
+SERVER_DATA_STRUCT = '!B'
+
+MSG_TYPE_ACTION = 1
+MGS_TYPE_CLIENT = 2
+MSG_TYPE_PLAYER = 3
+MSG_TYPE_ASTEROID = 4
+MSG_TYPE_SHOT = 5
+MSG_TYPE_SERVER_DATA = 6

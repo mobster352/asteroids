@@ -22,135 +22,27 @@ class Client():
         self.run = True
         self.num_connections = 0
         self.id = 0
+        self.is_peer_connected = False
         self.asteroids = []
         self.peer_shots = []
         self.shots = []
         self.action = GET_ACTION
         self.destroy_asteroid_id = None
         self.is_server_alive = False
+        self.peer_position = pygame.Vector2(0,0)
+        self.peer_rotation = None
+
 
     def __run__(self, lock):
-        peer_shot_id = 0
         while self.run:
             try:
-                # can only get 8192 bytes at a time
-                # request = self.client_socket.recv(8192)
-                # if not request:
-                #     print("[Client] Server disconnected.")
-                #     break
-                # decoded = json.loads(request.decode('utf-8'))
-                # print(f"[Client] Server says: {decoded}")
-
-                # unpack data from packets - variable size
-                decoded = self.recv_json_message()
-                if decoded is None:
-                    print("[Client] Server disconnected.")
-                    break
-                with lock:
-                    decoded_action = decoded.get("action")
-                    if decoded_action == GET_ACTION:
-                        self.peer_data = decoded.get("peer_data")
-                        self.num_connections = decoded.get("num_connections")
-
-                        serialized_asteroids = decoded.get("asteroid_data")
-                        if self.id == 2 and serialized_asteroids is not None:
-                            self.asteroids = []
-                            for a in serialized_asteroids:
-                                if a:
-                                    self.asteroids.append(Asteroid_Peer(
-                                        pygame.Vector2(a.get("position_x"), a.get("position_y")),
-                                        a.get("radius"),
-                                        a.get("asteroid_id")
-                                        ))
-
-                        if self.peer_data:
-                            serialized_shots = self.peer_data.get("shots_data")
-                            # print(f"[Client] shots_data: {serialized_shots}")
-                            self.peer_shots = []
-                            if serialized_shots is not None:
-                                # existing_peer_shot_ids = {shot.id for shot in self.peer_shots}
-                                for shot in serialized_shots:
-                                    # if shot["id"] not in existing_peer_shot_ids:
-                                    # if shot:
-                                        self.peer_shots.append(
-                                            Shot_Peer(
-                                                shot.get("position_x"),
-                                                shot.get("position_y"),
-                                                shot.get("radius"),
-                                                shot.get("id"),
-                                                shot.get("used")
-                                            )
-                                        )
-                                        peer_shot_id += 1
-                                # print(f"Shot_Peers: {self.peer_shots}")
-                    elif decoded_action == DESTROY_ACTION:
-                        self.destroy_asteroid_id = decoded.get("destroy_asteroid_id")
-
-                if self.action == GET_ACTION:
-                    if self.peer_data:
-                        action = self.peer_data.get("action")
-                        if action == "get_position":
-                            serialized_shots = []
-                            if self.shots is not None:
-                                for shot in self.shots:
-                                    if shot:
-                                        serialized_shots.append(
-                                            {
-                                                "position_x": shot.position.x,
-                                                "position_y": shot.position.y,
-                                                "radius": shot.radius,
-                                                "id": shot.id,
-                                                "used": shot.used
-                                            }
-                                        )
-                            if self.id == 1:
-                                serialized_asteroids = []
-                                for a in self.asteroids:
-                                    if a:
-                                        serialized_asteroids.append(
-                                            {
-                                                "asteroid_id": a.id,
-                                                "position_x": a.position.x,
-                                                "position_y": a.position.y,
-                                                "radius": a.radius
-                                            }
-                                        )
-                                data = {
-                                    "action": GET_ACTION,
-                                    "id": self.id,
-                                    "position": self.position, 
-                                    "rotation": self.rotation, 
-                                    "is_connected": True,
-                                    "asteroid_data": serialized_asteroids,
-                                    "shots_data": serialized_shots
-                                    }
-                            else:
-                                data = {
-                                    "action": GET_ACTION,
-                                    "id": self.id,
-                                    "position": self.position, 
-                                    "rotation": self.rotation, 
-                                    "is_connected": True,
-                                    "shots_data": serialized_shots
-                                    }
-                            # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
-                            self.send_json(data)
-                elif self.action == DESTROY_ACTION:
-                    data = {
-                        "action": DESTROY_ACTION,
-                        "destroy_asteroid_id": self.destroy_asteroid_id
-                    }
-                    # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
-                    self.send_json(data)
-                    self.action = GET_ACTION
-                    self.destroy_asteroid_id = None
-
+                self.process_json(lock)
+                # self.process_bytes(lock)
                 time.sleep(0.01) # 100 FPS?
-                    # print(f"client.shots: {self.shots}")
-                    # print(f"peer.shots: {self.peer_shots}")
             except socket.timeout:
                 continue
-            except OSError:
+            except OSError as e:
+                print(e)
                 break # socket was closed
             except Exception as e:
                 print(f"[Client] Error: {e}")
@@ -205,6 +97,7 @@ class Client():
         except Exception as e:
             print(f"Exception: {e}")
 
+# PROCESS JSON
     def recvall(self, n):
         # """Helper to receive exactly n bytes or return None if connection closed."""
         data = b''
@@ -233,3 +126,206 @@ class Client():
         message = json.dumps(data).encode('utf-8')
         length = struct.pack('!I', len(message))
         self.client_socket.sendall(length + message)
+
+    def handle_message_json(self, data):
+        decoded_action = data.get("action")
+        if decoded_action == GET_ACTION:
+            self.peer_data = data.get("peer_data")
+            self.num_connections = data.get("num_connections")
+
+            serialized_asteroids = data.get("asteroid_data")
+            if self.id == 2 and serialized_asteroids is not None:
+                self.asteroids = []
+                for a in serialized_asteroids:
+                    if a:
+                        self.asteroids.append(Asteroid_Peer(
+                            pygame.Vector2(a.get("position_x"), a.get("position_y")),
+                            a.get("radius"),
+                            a.get("asteroid_id")
+                            ))
+
+            if self.peer_data:
+                serialized_shots = self.peer_data.get("shots_data")
+                self.peer_shots = []
+                if serialized_shots is not None:
+                    # existing_peer_shot_ids = {shot.id for shot in self.peer_shots}
+                    peer_shot_id = 0
+                    for shot in serialized_shots:
+                            self.peer_shots.append(
+                                Shot_Peer(
+                                    shot.get("position_x"),
+                                    shot.get("position_y"),
+                                    shot.get("radius"),
+                                    shot.get("id"),
+                                    shot.get("used")
+                                )
+                            )
+                            peer_shot_id += 1
+        elif decoded_action == DESTROY_ACTION:
+            self.destroy_asteroid_id = data.get("destroy_asteroid_id")
+
+    def build_message_json(self):
+        if self.action == GET_ACTION:
+            if self.peer_data:
+                action = self.peer_data.get("action")
+                if action == "get_position":
+                    serialized_shots = []
+                    if self.shots is not None:
+                        for shot in self.shots:
+                            if shot:
+                                serialized_shots.append(
+                                    {
+                                        "position_x": shot.position.x,
+                                        "position_y": shot.position.y,
+                                        "radius": shot.radius,
+                                        "id": shot.id,
+                                        "used": shot.used
+                                    }
+                                )
+                    if self.id == 1:
+                        serialized_asteroids = []
+                        for a in self.asteroids:
+                            if a:
+                                serialized_asteroids.append(
+                                    {
+                                        "asteroid_id": a.id,
+                                        "position_x": a.position.x,
+                                        "position_y": a.position.y,
+                                        "radius": a.radius
+                                    }
+                                )
+                        data = {
+                            "action": GET_ACTION,
+                            "id": self.id,
+                            "position": self.position, 
+                            "rotation": self.rotation, 
+                            "is_connected": True,
+                            "asteroid_data": serialized_asteroids,
+                            "shots_data": serialized_shots
+                            }
+                    else:
+                        data = {
+                            "action": GET_ACTION,
+                            "id": self.id,
+                            "position": self.position, 
+                            "rotation": self.rotation, 
+                            "is_connected": True,
+                            "shots_data": serialized_shots
+                            }
+                    # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+                    self.send_json(data)
+        elif self.action == DESTROY_ACTION:
+            data = {
+                "action": DESTROY_ACTION,
+                "destroy_asteroid_id": self.destroy_asteroid_id
+            }
+            # self.client_socket.sendall(json.dumps(data).encode('utf-8'))
+            self.send_json(data)
+            self.action = GET_ACTION
+            self.destroy_asteroid_id = None
+
+    def process_json(self, lock):
+        decoded = self.recv_json_message()
+        if decoded is None:
+            raise OSError("[Client] Server disconnected.")
+        with lock:
+            self.handle_message_json(decoded)
+            self.build_message_json()
+
+# PROCESS BYTES
+    def build_action_message(self):
+        action_data = b''.join(struct.pack(ACTION_STRUCT, self.action))
+        msg = struct.pack(MSG_HEADER, len(action_data) + 1, MSG_TYPE_ACTION) + action_data
+        return msg
+
+    def build_client_message(self):
+        client_data = b''.join(struct.pack(CLIENT_STRUCT, self.client_id, True))
+        msg = struct.pack(MSG_HEADER, len(client_data) + 1, MSG_TYPE_CLIENT) + client_data
+        return msg
+
+    def build_player_message(self):
+        player_data = b''.join(struct.pack(PLAYER_STRUCT, self.position.x, self.position.y, self.rotation))
+        msg = struct.pack(MSG_HEADER, len(player_data) + 1, MSG_TYPE_PLAYER) + player_data
+        return msg
+
+    def build_asteroid_message(self):
+        asteroid_data = b''.join(struct.pack(ASTEROID_STRUCT, asteroid_id, position_x, position_y, radius) for id, position.x, position.y, radius in self.asteroids)
+        msg = struct.pack(MSG_HEADER, len(asteroid_data) + 1, MSG_TYPE_ASTEROID) + asteroid_data
+        return msg
+
+    def build_shot_message(self):
+        shot_data = b''.join(struct.pack(SHOT_STRUCT, shot_id, position_x, position_y, radius, used) for id, position.x, position.y, radius, used in self.shots)
+        msg = struct.pack(MSG_HEADER, len(shot_data) + 1, MSG_TYPE_SHOT) + shot_data
+        return msg
+
+    def send_game_state(self):
+        msg1 = self.build_action_message()
+        msg2 = self.build_client_message()
+        msg3 = self.build_player_message()
+        msg4 = self.build_asteroid_message()
+        msg5 = self.build_shot_message()
+        sock.sendall(msg1 + msg2 + msg3 + msg4 + msg5)  # Send all messages in one TCP packet
+
+    def handle_message(self, msg_type, payload):
+        if msg_type == MSG_TYPE_ACTION:
+            size = struct.calcsize(ACTION_STRUCT)
+            for i in range(0, len(payload), size):
+                self.action = struct.unpack(ACTION_STRUCT, payload[i:i+size])
+                # can probably optimize this to not use a loop, we know it is always one byte
+
+        elif msg_type == MSG_TYPE_SERVER_DATA:
+            self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)
+
+        elif msg_type == MSG_TYPE_CLIENT:
+            size = struct.calcsize(CLIENT_STRUCT)
+            for i in range(0, len(payload), size):
+                self.client_id, self.is_peer_connected = struct.unpack(CLIENT_STRUCT, payload[i:i+size])
+                # can probably optimize this to not use a loop, we know it is always one item
+
+        elif msg_type == MSG_TYPE_PLAYER:
+            size = struct.calcsize(PlAYER_STRUCT)
+            for i in range(0, len(payload), size):
+                self.peer_position.x, self.peer_position.y, self.peer_rotation = struct.unpack(PlAYER_STRUCT, payload[i:i+size])
+                # can probably optimize this to not use a loop, we know it is always one item
+
+        elif msg_type == MSG_TYPE_ASTEROID:
+            size = struct.calcsize(ASTEROID_STRUCT)
+            for i in range(0, len(payload), size):
+                id, x, y, radius = struct.unpack(ASTEROID_STRUCT, payload[i:i+size])
+                self.asteroids.append(Asteroid_Peer(pygame.Vector2(x, y),radius,id))
+
+        elif msg_type == MSG_TYPE_SHOT:
+            size = struct.calcsize(SHOT_STRUCT)
+            for i in range(0, len(payload), size):
+                id, x, y, radius, used = struct.unpack(SHOT_STRUCT, payload[i:i+size])
+                self.peer_shots.append(Shot_Peer(x,y,radius,id,used))
+
+
+
+    def process_bytes(self, lock):
+        buffer = b''
+        while True:
+            # can only get 4096 bytes at a time
+            data = self.client_socket.recv(4096)
+            if not data:
+                break
+            print(f"data_len: {len(data)}")
+            buffer += data
+            print(f"buffer_len: {len(buffer)}")
+            while True:
+                if len(buffer) < 5:
+                    break  # wait for full header
+
+                # B is char is message type (ie which object it is)
+                msg_len, msg_type = struct.unpack('!IB', buffer[:5])
+                total_len = 5 + (msg_len - 1)
+
+                if len(buffer) < total_len:
+                    break  # wait for full payload
+
+                payload = buffer[5:total_len]
+                self.handle_message(msg_type, payload)
+                buffer = buffer[total_len:]
+                if self.action == DESTROY_ACTION:
+                    break
+            self.send_game_state()

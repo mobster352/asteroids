@@ -586,6 +586,8 @@ def main():
                             client.update_position(player.get_position())
                             client.update_rotation(player.get_rotation())
                             # update peer
+                            
+                            # need to refactor this to use class variables
                             if client.peer_data is not None and client.peer_data.get("is_connected"):
                                 peer.update_position(client.peer_data.get("position"))
                                 peer.update_rotation(client.peer_data.get("rotation"))

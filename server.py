@@ -194,6 +194,7 @@ class Server():
             self.server_socket.close()
             print("Server closed")
 
+    # PROCESS JSON
     def send_json(self, sock, data):
         message = json.dumps(data).encode('utf-8')
         length = struct.pack('!I', len(message))
@@ -221,6 +222,72 @@ class Server():
             return None  # connection closed during message receive
 
         return json.loads(raw_msg)
+
+    # PROCESS BYTES
+    def handle_message(self, msg_type, payload, index, other_index):
+        if msg_type == MSG_TYPE_ACTION:
+            action = struct.unpack(ACTION_STRUCT, payload[i:i+size])
+            if action == DESTROY_ACTION:
+                    self.clients[other_index].action = DESTROY_ACTION
+                    self.clients[other_index].destroy_asteroid_id = decoded.get("destroy_asteroid_id") # need to build this on client
+            else:
+                with self.lock:
+                    pass
+                    # need to make update on Client class to handle byte data
+                    # self.clients[index].update_data(decoded)
+
+        elif msg_type == MSG_TYPE_SERVER_DATA:
+            self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)
+
+        elif msg_type == MSG_TYPE_CLIENT:
+            size = struct.calcsize(CLIENT_STRUCT)
+            for i in range(0, len(payload), size):
+                self.client_id, self.is_peer_connected = struct.unpack(CLIENT_STRUCT, payload[i:i+size])
+                # can probably optimize this to not use a loop, we know it is always one item
+
+        elif msg_type == MSG_TYPE_PLAYER:
+            size = struct.calcsize(PlAYER_STRUCT)
+            for i in range(0, len(payload), size):
+                self.peer_position.x, self.peer_position.y, self.peer_rotation = struct.unpack(PlAYER_STRUCT, payload[i:i+size])
+                # can probably optimize this to not use a loop, we know it is always one item
+
+        elif msg_type == MSG_TYPE_ASTEROID:
+            size = struct.calcsize(ASTEROID_STRUCT)
+            for i in range(0, len(payload), size):
+                id, x, y, radius = struct.unpack(ASTEROID_STRUCT, payload[i:i+size])
+                self.asteroids.append(Asteroid_Peer(pygame.Vector2(x, y),radius,id))
+
+        elif msg_type == MSG_TYPE_SHOT:
+            size = struct.calcsize(SHOT_STRUCT)
+            for i in range(0, len(payload), size):
+                id, x, y, radius, used = struct.unpack(SHOT_STRUCT, payload[i:i+size])
+                self.peer_shots.append(Shot_Peer(x,y,radius,id,used))
+
+
+    def process_bytes(self, index, other_index):
+        buffer = b''
+        while True:
+            # can only get 4096 bytes at a time
+            data = self.client_socket.recv(4096)
+            if not data:
+                break
+            buffer += data
+            while True:
+                if len(buffer) < 5:
+                    break  # wait for full header
+
+                # B is char is message type (ie which object it is)
+                msg_len, msg_type = struct.unpack('!IB', buffer[:5])
+                total_len = 5 + (msg_len - 1)
+
+                if len(buffer) < total_len:
+                    break  # wait for full payload
+
+                payload = buffer[5:total_len]
+                self.handle_message(msg_type, payload)
+                buffer = buffer[total_len:]
+                    
+            # self.send_game_state()
 
 # HOST = '127.0.0.1'
 # PORT = 65432
