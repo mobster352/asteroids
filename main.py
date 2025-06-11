@@ -164,7 +164,7 @@ def main():
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
     dt = 0
-    fps = 120
+    fps = 30
 
     font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
     menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
@@ -579,23 +579,17 @@ def main():
                                         s.kill()
                             if hit:
                                 break
-                            # print("break")
 
                         if player:
                             # update client
                             client.update_position(player.get_position())
                             client.update_rotation(player.get_rotation())
-                            # update peer
                             
-                            # need to refactor this to use class variables
-                            if client.peer_data is not None and client.peer_data.get("is_connected"):
-                                peer.update_position(client.peer_data.get("position"))
-                                peer.update_rotation(client.peer_data.get("rotation"))
+                            # update peer
+                            if client.is_peer_connected:
+                                peer.update_position(client.peer_position)
+                                peer.update_rotation(client.peer_rotation)
                                 peer.draw_peer(screen)
-
-                    # for s in player.shots:
-                    #     print(s.position)
-                    # print("break")
 
                     if player:
                         if player.pause:

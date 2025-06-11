@@ -20,33 +20,33 @@ class Asteroid(CircleShape):
         self.__check_off_screen(screen_width, screen_height)
 
     def split(self, asteroid_field):
-        # print("hit")
         asteroid_field.asteroids.remove(self)
         if self.radius <= ASTEROID_MIN_RADIUS:
             if ENABLE_SOUNDS:
                 pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
             self.kill()
             return asteroid_field.asteroids
-        angle = random.uniform(20, 50)
+        if len(asteroid_field.asteroids) < 40:
+            angle = random.uniform(20, 50)
 
-        vector1 = self.velocity.rotate(angle)
-        vector2 = self.velocity.rotate(-angle)
+            vector1 = self.velocity.rotate(angle)
+            vector2 = self.velocity.rotate(-angle)
 
-        new_radius = self.radius - ASTEROID_MIN_RADIUS
+            new_radius = self.radius - ASTEROID_MIN_RADIUS
 
-        new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
-        new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
+            new_asteroid_1 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
+            new_asteroid_2 = Asteroid(self.position.x, self.position.y, new_radius, asteroid_field.get_next_id())
 
-        new_asteroid_1.velocity = vector1 * 1.2
-        new_asteroid_2.velocity = vector2 * 1.2
+            new_asteroid_1.velocity = vector1 * 1.2
+            new_asteroid_2.velocity = vector2 * 1.2
 
-        asteroid_field.asteroids.append(new_asteroid_1)
-        asteroid_field.asteroids.append(new_asteroid_2)
+            asteroid_field.asteroids.append(new_asteroid_1)
+            asteroid_field.asteroids.append(new_asteroid_2)
 
-        if ENABLE_SOUNDS:
-            pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
+            if ENABLE_SOUNDS:
+                pygame.mixer.Sound(EXPLOSION_L_SOUND_FILE).play()
 
-        self.kill()
+            self.kill()
         return asteroid_field.asteroids
 
     def __check_off_screen(self, screen_width, screen_height):
