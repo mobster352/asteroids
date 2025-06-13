@@ -329,13 +329,16 @@ def main():
                         mouse_pos = pygame.mouse.get_pos()
                         if connect_button.check_collisions(mouse_pos):
                             server = Server(host_input.value, int(port_input.value))
-                            # server_thread = threading.Thread(target=server.start_server)
-                            server_thread = threading.Thread(target=server.start_server_udp)
-                            server_thread.daemon = True
-                            server_thread.start()
+                            server_thread = threading.Thread(target=server.start_server_udp, daemon=True).start()
                             time.sleep(0.01)
 
-                            client = Client(host_input.value, int(port_input.value), 65433)
+                            client = Client(host_input.value, int(port_input.value))
+
+                            client_heartbeat = threading.Thread(target=client.send_heartbeat, args=(lock,))
+                            client_heartbeat.daemon = True
+                            client_heartbeat.start()
+                            time.sleep(0.01)
+
                             client_thread = threading.Thread(target=client.connect_udp, args=(lock,))
                             client_thread.daemon = True
                             client_thread.start()
@@ -401,9 +404,13 @@ def main():
                         mouse_pos = pygame.mouse.get_pos()                                              
                         if connect_button.check_collisions(mouse_pos):
                             try:
-                                client = Client(host_input.value, int(port_input.value), 65434)
-                                # client.ping_server()
-                                # if client.is_server_alive:
+                                client = Client(host_input.value, int(port_input.value))
+                                
+                                client_heartbeat = threading.Thread(target=client.send_heartbeat, args=(lock,))
+                                client_heartbeat.daemon = True
+                                client_heartbeat.start()
+                                time.sleep(0.01)
+
                                 client_thread = threading.Thread(target=client.connect_udp, args=(lock,))
                                 client_thread.daemon = True
                                 client_thread.start()

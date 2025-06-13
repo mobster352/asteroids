@@ -12,11 +12,10 @@ from shot_peer import Shot_Peer
 from constants import *
 
 class Client():
-    def __init__(self, host, port, client_port):
+    def __init__(self, host, port):
         self.host = host
         self.port = port
         self.server_addr = (host, port)
-        self.client_port = client_port
         self.client_socket = None
         self.position = (0,0)
         self.rotation = 0
@@ -54,15 +53,15 @@ class Client():
         if self.is_server_alive:
             self.__run__(lock)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            self.client_socket = s
-            self.client_socket.settimeout(30.0)
+            self.client_socket_tcp = s
+            self.client_socket_tcp.settimeout(30.0)
             try:
-                self.client_socket.connect((self.host, self.port))
+                self.client_socket_tcp.connect((self.host, self.port))
                 self.is_server_alive = True
             except Exception as e:
                 print(f"[Client] Connection failed: {e}")
                 return 
-            self.__run__(lock)            
+            self.__run__(lock)         
 
     def update_position(self, position):
         self.position = (position.x, position.y)
@@ -294,41 +293,42 @@ class Client():
         else:
             print(f"[Client] invalid action: {self.action}")
 
-    def handle_message(self, msg_type, payload):
-        if msg_type == MSG_TYPE_ACTION:
-            self.action = struct.unpack(ACTION_STRUCT, payload)[0]
+    def handle_message(self, msg_type, payload, lock):
+        with lock:
+            if msg_type == MSG_TYPE_ACTION:
+                self.action = struct.unpack(ACTION_STRUCT, payload)[0]
 
-        elif msg_type == MSG_TYPE_SERVER_DATA:
-            self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)[0]
+            elif msg_type == MSG_TYPE_SERVER_DATA:
+                self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)[0]
 
-        elif msg_type == MSG_TYPE_CLIENT:
-            id, self.is_peer_connected = struct.unpack(CLIENT_STRUCT, payload)
+            elif msg_type == MSG_TYPE_CLIENT:
+                self.id, self.is_peer_connected = struct.unpack(CLIENT_STRUCT, payload)
 
-        elif msg_type == MSG_TYPE_PLAYER:
-            self.peer_position.x, self.peer_position.y, self.peer_rotation = struct.unpack(PLAYER_STRUCT, payload)
+            elif msg_type == MSG_TYPE_PLAYER:
+                self.peer_position.x, self.peer_position.y, self.peer_rotation = struct.unpack(PLAYER_STRUCT, payload)
 
-        elif msg_type == MSG_TYPE_ASTEROID:
-            size = struct.calcsize(ASTEROID_STRUCT)
-            if self.id == 2 and size > 0:
-                self.asteroids = []
-                for i in range(0, len(payload), size):
-                    id, x, y, radius = struct.unpack(ASTEROID_STRUCT, payload[i:i+size])
-                    self.asteroids.append(Asteroid_Peer(pygame.Vector2(x, y),radius,id))
+            elif msg_type == MSG_TYPE_ASTEROID:
+                size = struct.calcsize(ASTEROID_STRUCT)
+                if self.id == 2 and size > 0:
+                    self.asteroids = []
+                    for i in range(0, len(payload), size):
+                        id, x, y, radius = struct.unpack(ASTEROID_STRUCT, payload[i:i+size])
+                        self.asteroids.append(Asteroid_Peer(pygame.Vector2(x, y),radius,id))
 
-        elif msg_type == MSG_TYPE_SHOT:
-            size = struct.calcsize(SHOT_STRUCT)
-            if size > 0:
-                self.peer_shots = []
-                for i in range(0, len(payload), size):
-                    id, x, y, radius, used = struct.unpack(SHOT_STRUCT, payload[i:i+size])
-                    self.peer_shots.append(Shot_Peer(x,y,radius,id,used))
+            elif msg_type == MSG_TYPE_SHOT:
+                size = struct.calcsize(SHOT_STRUCT)
+                if size > 0:
+                    self.peer_shots = []
+                    for i in range(0, len(payload), size):
+                        id, x, y, radius, used = struct.unpack(SHOT_STRUCT, payload[i:i+size])
+                        self.peer_shots.append(Shot_Peer(x,y,radius,id,used))
 
-        elif msg_type == MSG_TYPE_DESTROY_ASTEROID:
-            self.destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
-            self.action = DESTROY_ACTION
+            elif msg_type == MSG_TYPE_DESTROY_ASTEROID:
+                self.destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
+                self.action = DESTROY_ACTION
 
-        elif msg_type == MSG_TYPE_PING:
-            self.is_server_alive = struct.unpack(PING_STRUCT, payload)[0]
+            elif msg_type == MSG_TYPE_PING:
+                self.is_server_alive = struct.unpack(PING_STRUCT, payload)[0]
 
     def process_bytes(self, lock):
         buffer = b''
@@ -358,6 +358,21 @@ class Client():
         self.send_game_state()
 
     # UDP
+    def send_heartbeat(self, lock):
+        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_sock.connect((self.host, self.port))
+        while True:
+            try:
+                tcp_sock.sendall(b'heartbeat')
+                data = tcp_sock.recv(1024)
+                self.process_bytes_udp(data, lock)
+                # print(f"[Client] client_id: {self.id}")
+                time.sleep(5)
+            except:
+                print("[CLIENT] TCP connection lost")
+                break
+        tcp_sock.close()
+
     def build_ping_message(self):
         ping_data = struct.pack(PING_STRUCT, self.is_server_alive)
         msg = struct.pack(MSG_HEADER, len(ping_data) + 1, MSG_TYPE_PING) + ping_data
@@ -374,14 +389,15 @@ class Client():
                 msg5 = b''
             if self.id == 1 and len(self.asteroids) > 0:
                 msg4 = self.build_asteroid_message()
-                return msg1 + msg2 + msg3 + msg4 + msg5  
+                return msg2 + msg1 + msg3 + msg4 + msg5  
             else:
-                return msg1 + msg2 + msg3 + msg5
+                return msg2 + msg1 + msg3 + msg5
         elif self.action == DESTROY_ACTION:
             msg1 = self.build_destroy_asteroid_message()
+            msg2 = self.build_client_message()
             self.action = GET_ACTION
             self.destroy_asteroid_id = None
-            return msg1
+            return msg2 + msg1
         else:
             raise Exception(f"[Client] invalid action: {self.action}")
 
@@ -389,17 +405,17 @@ class Client():
         while self.run:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 self.client_socket = s
-                # self.client_socket.bind((self.host, self.client_port))
                 self.client_socket.settimeout(30.0)
                 try:
-                    # print(f"[Client] client.id: {self.id}")
-                    # print(f"[Client] num_connections: {self.num_connections}")
                     if self.is_server_alive:
                         msg = self.send_game_state_udp()
                     else:
                         msg = self.build_ping_message()
+                    print(f"[Client] msg: {msg}")
                     self.client_socket.sendto(msg, self.server_addr)
-                    self.process_bytes_udp(lock)
+
+                    data, addr = self.client_socket.recvfrom(4096)
+                    self.process_bytes_udp(data, lock)
                     time.sleep(0.005) # 100 FPS?
                 except socket.timeout:
                     continue
@@ -410,17 +426,12 @@ class Client():
                     print(f"[Client] Error: {e}")
                     break
 
-    def process_bytes_udp(self, lock):
+    def process_bytes_udp(self, data, lock):
         buffer = b''
-        # print(f"server_addr: {self.server_addr}")
-        data, addr = self.client_socket.recvfrom(4096)
-        # print(f"addr: {addr}")
         if not data: #or addr != self.server_addr:
             print("[Client] end of packet")
             return
-        # print(f"[Client] data_len: {len(data)}")
         buffer += data
-        # print(f"[Client] buffer_len: {len(buffer)}")
         while True:
             if len(buffer) < 5:
                 # print(f"[Client] len(buffer) < 5")
@@ -432,7 +443,7 @@ class Client():
                 # print(f"[Client] buffer done")
                 break  # wait for full payload\
             payload = buffer[5:total_len]
-            self.handle_message(msg_type, payload)
+            self.handle_message(msg_type, payload, lock)
             buffer = buffer[total_len:]
 
     def disconnect_udp(self):
