@@ -37,8 +37,9 @@ CLIENT_HOST = '192.168.0.100'
 #'127.0.0.1' # Localhost
 PORT = 65432
 
-GET_ACTION = 0
-DESTROY_ACTION = 1
+PING_ACTION = 0
+GET_ACTION = 1
+DESTROY_ACTION = 2
 
 IN_MENU = 0
 IN_SINGLEPLAYER_GAME = 1
@@ -49,6 +50,9 @@ IN_MULTIPLAYER_GAME = 5
 
 MAX_CONNECTIONS = 2
 
+# is_server_alive (bool)
+PING_STRUCT = '!?'
+# header type (uint), (unsigned char)
 MSG_HEADER = '!IB'  # 4-byte length (excluding length field), 1-byte type
 # action (unsigned_char)
 ACTION_STRUCT = '!B'  # Network byte order
@@ -65,6 +69,7 @@ SERVER_DATA_STRUCT = '!B'
 # destroy_asteroid_id (uint32)
 DESTROY_ASTEROID_STRUCT = '!I'
 
+MSG_TYPE_PING = 0
 MSG_TYPE_ACTION = 1
 MSG_TYPE_CLIENT = 2
 MSG_TYPE_PLAYER = 3

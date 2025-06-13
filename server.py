@@ -6,6 +6,8 @@ import json
 
 from constants import *
 
+from datetime import datetime
+
 class Client_Data():
     def __init__(self):
         self.conn_addr = None  # (conn, addr)
@@ -19,6 +21,10 @@ class Client_Data():
         self.action = GET_ACTION
         self.destroy_asteroid_id = None
 
+        # UDP
+        self.addr = (None,None) # (ip, port)
+        self.last_seen = None # last time packet received
+
     def update_data(self, decoded_json):
         self.position = decoded_json.get("position")
         self.rotation = decoded_json.get("rotation")
@@ -28,13 +34,14 @@ class Client_Data():
         self.shots_data = decoded_json.get("shots_data")
 
     def reset_data(self):
-        self.conn_addr = None
+        self.conn_addr = (None, None)
         self.position = (0,0)
         self.rotation = 0
         self.is_connected = False
         self.asteroid_data = []
         self.id = 0
-        shots_data = []
+        self.shots_data = []
+        self.last_seen = None
 
 class Server():
     def __init__(self, host, port):
@@ -47,8 +54,8 @@ class Server():
         self.lock = threading.Lock()
 
     def start_server(self):
-        print("Local IP address:", self.get_local_ip())
-        print("Local IP address (filtered):", self.get_local_ip_filtered())
+        # print("Local IP address:", self.get_local_ip())
+        # print("Local IP address (filtered):", self.get_local_ip_filtered())
         # Main server loop
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.server_socket = s
@@ -334,6 +341,9 @@ class Server():
             self.clients[other_index].destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
             self.clients[other_index].action = DESTROY_ACTION
 
+        elif msg_type == MSG_TYPE_PING:
+            self.clients[index].action = PING_ACTION
+
     def process_bytes(self, conn, index, other_index):
         buffer = b''
         self.send_game_state(conn, index, other_index)
@@ -359,6 +369,120 @@ class Server():
             payload = buffer[5:total_len]
             self.handle_message(msg_type, payload, index, other_index)
             buffer = buffer[total_len:]
+
+    # UDP
+    def start_server_udp(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            self.server_socket = s
+            s.settimeout(30.0)
+            s.bind((self.host, self.port))
+            print(f"[SERVER] Listening on {self.host}:{self.port}...")
+
+            while True:
+                for client in self.clients:
+                    if client.last_seen is None:
+                        continue
+                    elif datetime.now().timestamp() - client.last_seen > 600: # if the client is inactive for 10 minutes
+                        with self.lock:
+                            client.reset_data()
+                            self.num_connections -= 1
+                            print(f"[Server] Client {client.id} disconnected")
+                try:
+                    data, addr = s.recvfrom(4096)
+                    index = self.find_or_assign_slot_udp(addr)
+                    if index is not None:
+                        response = self.handle_udp_message(data, addr, index)
+                        s.sendto(response, addr)
+                except Exception as e:
+                    print("[UDP Error]", e)
+
+    def find_or_assign_slot_udp(self, addr):
+        with self.lock:
+            for i, client in enumerate(self.clients):
+                if client.addr[i] == addr[0]:
+                    self.clients[i].last_seen = datetime.now().timestamp()
+                    return i
+            for i, client in enumerate(self.clients):
+                if client.addr[i] is None:
+                    self.clients[i].addr = addr
+                    self.num_connections += 1
+                    print(f"[Server] num_connections: {self.num_connections}")
+                    self.clients[i].last_seen = datetime.now().timestamp()
+                    return i
+        return None
+
+    def handle_udp_message(self, data, addr, index):
+        # print(f"[+] Client {index+1} connected: {addr}")
+        try:
+            other_index = 1 - index
+            try:
+                response = self.process_bytes_udp(data, addr, index, other_index)
+                return response
+            except OSError as e:
+                print(e) # socket was closed
+            except (BrokenPipeError, ConnectionResetError) as e:
+                print(f"[!] Client {index+1} send error: {e}")
+            except Exception as e:
+                print(f"[!] Error receiving from Client {index+1}: {e}")
+        finally:
+                # print(f"[x] Client {index+1} cleanup done.")
+                pass
+
+    def send_game_state_udp(self, index, other_index):
+        if self.clients[index].action == GET_ACTION:
+            msg1 = self.build_action_message(index)
+            msg2 = self.build_client_message(index, other_index)
+            msg3 = self.build_player_message(other_index)
+            msg5 = self.build_shot_message(other_index)
+            msg6 = self.build_server_message()
+            if self.clients[index].id == 2:
+                msg4 = self.build_asteroid_message(other_index)
+                return msg1 + msg2 + msg3 + msg4 + msg5 + msg6 
+            else:
+                return msg1 + msg2 + msg3 + msg5 + msg6
+        elif self.clients[index].action == DESTROY_ACTION:
+            msg = self.build_destroy_asteroid_message(index)
+            self.action = GET_ACTION
+            self.destroy_asteroid_id = None
+            return msg
+        elif self.clients[index].action == PING_ACTION:
+            msg = self.build_ping_message()
+            return msg
+        else:
+            print(f"[Server] invalid action: {self.clients[index].action}")
+
+    def process_bytes_udp(self, data, addr, index, other_index):
+        buffer = b''
+        if not data:
+            raise Exception("No data from client")
+        buffer += data
+        while True:
+            if len(buffer) < 5:
+                # print(f"[Server] len(buffer) < 5")
+                break  # wait for full header
+
+            # print(f"header payload: {buffer[:5]}")
+            msg_len, msg_type = struct.unpack('!IB', buffer[:5])
+            total_len = 5 + (msg_len - 1)
+
+            if len(buffer) < total_len:
+                # print(f"[Server] buffer done")
+                break  # wait for full payload
+
+            payload = buffer[5:total_len]
+            self.handle_message(msg_type, payload, index, other_index)
+            buffer = buffer[total_len:]
+        # print(f"action: {self.clients[index].action}")
+        return self.send_game_state_udp(index, other_index)
+
+    def build_ping_message(self):
+        ping_data = struct.pack(PING_STRUCT, True)
+        msg = struct.pack(MSG_HEADER, len(ping_data) + 1, MSG_TYPE_PING) + ping_data
+        return msg
+
+    def disconnect_udp(self):
+        self.server_socket.close()
+        print("Server closed")
 
 # HOST = '127.0.0.1'
 # PORT = 65432

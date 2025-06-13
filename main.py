@@ -101,7 +101,7 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
     menu = IN_MENU
     if client:
         client.kill_client()
-        client.disconnect()
+        client.disconnect_udp()
         if client_thread:
             client_thread.join()
         client = None
@@ -109,7 +109,7 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
     peer = None
     time.sleep(0.2)
     if server:
-        server.disconnect()
+        server.disconnect_udp()
         if server_thread:
             server_thread.join()
         server = None
@@ -127,7 +127,7 @@ def leave_game(asteroids, shots, updatable, drawable, menu, client, client_threa
     menu = IN_MENU
     if client:
         client.kill_client()
-        client.disconnect()
+        client.disconnect_udp()
         if client_thread:
             client_thread.join()
         client = None
@@ -135,7 +135,7 @@ def leave_game(asteroids, shots, updatable, drawable, menu, client, client_threa
     peer = None
     time.sleep(0.2)
     if server:
-        server.disconnect()
+        server.disconnect_udp()
         if server_thread:
             server_thread.join()
         server = None
@@ -329,13 +329,14 @@ def main():
                         mouse_pos = pygame.mouse.get_pos()
                         if connect_button.check_collisions(mouse_pos):
                             server = Server(host_input.value, int(port_input.value))
-                            server_thread = threading.Thread(target=server.start_server)
+                            # server_thread = threading.Thread(target=server.start_server)
+                            server_thread = threading.Thread(target=server.start_server_udp)
                             server_thread.daemon = True
                             server_thread.start()
                             time.sleep(0.01)
 
-                            client = Client(host_input.value, int(port_input.value))
-                            client_thread = threading.Thread(target=client.connect, args=(lock,))
+                            client = Client(host_input.value, int(port_input.value), 65433)
+                            client_thread = threading.Thread(target=client.connect_udp, args=(lock,))
                             client_thread.daemon = True
                             client_thread.start()
 
@@ -400,18 +401,18 @@ def main():
                         mouse_pos = pygame.mouse.get_pos()                                              
                         if connect_button.check_collisions(mouse_pos):
                             try:
-                                client = Client(host_input.value, int(port_input.value))
-                                client.ping_server()
-                                if client.is_server_alive:
-                                    client_thread = threading.Thread(target=client.connect, args=(lock,))
-                                    client_thread.daemon = True
-                                    client_thread.start()
+                                client = Client(host_input.value, int(port_input.value), 65434)
+                                # client.ping_server()
+                                # if client.is_server_alive:
+                                client_thread = threading.Thread(target=client.connect_udp, args=(lock,))
+                                client_thread.daemon = True
+                                client_thread.start()
 
-                                    time.sleep(0.01)
+                                time.sleep(0.1)
 
-                                    player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+                                player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
 
-                                    menu = IN_MULTIPLAYER_GAME
+                                menu = IN_MULTIPLAYER_GAME
                             except Exception as e:
                                 print(f"[Client] Server not alive: {e}")
                         elif host_textbox.check_collisions(mouse_pos):
@@ -673,14 +674,14 @@ def main():
         pass
     finally:
         if client:
-            client.disconnect()
+            client.disconnect_udp()
             if client_thread:
                 client_thread.join()
                 print("client thread joined")
         if server:
-            server.disconnect()
+            server.disconnect_udp()
             if server_thread:
-                server_thread.join()
+                # server_thread.join()
                 print("server thread joined")
 
 if __name__ == "__main__":
