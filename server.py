@@ -54,6 +54,9 @@ class Server():
         self.lock = threading.Lock()
         self.client_index = 0
         self.client_other_index = 0
+        self.tcp_sock = None
+        self.tcp_heartbeat_thread = None
+        self.udp_game_thread = None
 
     def start_server(self):
         # print("Local IP address:", self.get_local_ip())
@@ -164,8 +167,8 @@ class Server():
         except ConnectionRefusedError:
             print("Connection refused.")
         finally:
-            self.server_socket.close()
-            print("Server closed")
+            self.tcp_sock.close()
+            print("[Server] TCP Socket closed")
 
     # PROCESS JSON using TCP
     def send_json(self, sock, data):
@@ -306,17 +309,11 @@ class Server():
             self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)[0]
 
         elif msg_type == MSG_TYPE_CLIENT:
-            print(f"[Server] client payload: {payload}")
             client_id, is_connected = struct.unpack(CLIENT_STRUCT, payload)
-            print(f"[Server] client_id: {client_id}, is_connected: {is_connected}")
             self.client_index = self.get_index_by_client_id(client_id)
-            print("hereeeeeee")
             self.client_other_index = 1 - self.client_index
-            print("hereee")
             self.clients[self.client_index].id = client_id 
-            print("here")
             self.clients[self.client_index].is_connected = is_connected
-            print(f"[Server] client payload processed")
 
         elif msg_type == MSG_TYPE_PLAYER:
             position_x, position_y, self.clients[self.client_index].rotation = struct.unpack(PLAYER_STRUCT, payload)
@@ -391,26 +388,26 @@ class Server():
     # UDP
     def start_server_udp(self):
         # TCP socket
-        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_sock.settimeout(30.0)
-        tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        tcp_sock.bind((self.host, self.port))
-        tcp_sock.listen()
+        self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_sock.settimeout(None)
+        self.tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.tcp_sock.bind((self.host, self.port))
+        self.tcp_sock.listen()
 
         # UDP socket
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.server_socket.settimeout(30.0)
         self.server_socket.bind((self.host, self.port))
 
-        threading.Thread(target=self.udp_game_handler, daemon=True).start()
+        self.udp_game_thread = threading.Thread(target=self.udp_game_handler, daemon=True).start()
 
         print("[SERVER] TCP and UDP servers running.")
         try:
             while True:
-                conn, addr = tcp_sock.accept()
-                threading.Thread(target=self.tcp_heartbeat_handler, args=(conn, addr), daemon=True).start()
+                conn, addr = self.tcp_sock.accept()
+                self.tcp_heartbeat_thread = threading.Thread(target=self.tcp_heartbeat_handler, args=(conn, addr), daemon=True).start()
         except Exception as e:
-            print(e)
+            print(f"[Server] Exception: {e}")
 
     def tcp_heartbeat_handler(self, conn, addr):
         print(f"[TCP] Connection from {addr}")
@@ -420,12 +417,17 @@ class Server():
                 if not data:
                     break
                 self.client_index = self.find_or_assign_slot_udp(addr)
+                print(f"[Server] client_index: {self.client_index}")
                 self.clients[self.client_index].id = self.client_index + 1
+                print(f"[Server] client id: {self.clients[self.client_index].id}")
                 if self.client_index is None:
                     raise Exception("[Server] Unable to bind client")
                 self.client_other_index = 1 - self.client_index
+                print(f"[Server] other_index: {self.client_other_index}")
                 msg = self.build_client_message()
+                print(f"[Server] msg: {msg}")
                 conn.sendall(msg)
+                print(f"[Server] msg sent")
             except Exception as e:
                 print(f"[Server] Exception: {e}")
         with self.lock:
@@ -447,7 +449,6 @@ class Server():
                         print(f"[Server] Client {client.id} disconnected")
             try:
                 data, addr = self.server_socket.recvfrom(4096)
-                print(f"[Server] data: {data}, addr: {addr}")
                 response = self.handle_udp_message(data, addr)
                 self.server_socket.sendto(response, addr)
             except Exception as e:
@@ -466,6 +467,7 @@ class Server():
                     self.num_connections += 1
                     print(f"[Server] num_connections: {self.num_connections}")
                     return i
+            print(f"[Server] no slot found")
             return None
 
     def handle_udp_message(self, data, addr):
@@ -513,7 +515,6 @@ class Server():
                 # print(f"[Server] len(buffer) < 5")
                 break  # wait for full header
 
-            print(f"header payload: {buffer[:5]}")
             msg_len, msg_type = struct.unpack('!IB', buffer[:5])
             total_len = 5 + (msg_len - 1)
 
@@ -533,8 +534,11 @@ class Server():
         return msg
 
     def disconnect_udp(self):
-        self.server_socket.close()
-        print("Server closed")
+        self.disconnect()
+
+        if self.clients[self.client_index] == 1:
+            self.server_socket.close()
+            print("Server closed")
 
 # HOST = '127.0.0.1'
 # PORT = 65432

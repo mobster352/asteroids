@@ -17,6 +17,7 @@ class Client():
         self.port = port
         self.server_addr = (host, port)
         self.client_socket = None
+        self.tcp_sock = None
         self.position = (0,0)
         self.rotation = 0
         self.peer_data = None
@@ -32,6 +33,7 @@ class Client():
         self.is_peer_connected = False
         self.peer_position = pygame.Vector2(0,0)
         self.peer_rotation = None
+        self.is_connected = False
 
 
     def __run__(self, lock):
@@ -84,8 +86,8 @@ class Client():
         except ConnectionRefusedError:
             print("Connection refused. Server might not be running.")
         finally:
-            self.client_socket.close()
-            print("Client Closed")
+            self.tcp_sock.close()
+            print("[Client] TCP Socket Closed")
 
     def ping_server(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -302,7 +304,10 @@ class Client():
                 self.num_connections = struct.unpack(SERVER_DATA_STRUCT, payload)[0]
 
             elif msg_type == MSG_TYPE_CLIENT:
-                self.id, self.is_peer_connected = struct.unpack(CLIENT_STRUCT, payload)
+                id, is_peer_connected = struct.unpack(CLIENT_STRUCT, payload)
+                print(f"[Client] id: {id}, is_peer_connected: {is_peer_connected}")
+                self.id = id 
+                self.is_peer_connected = is_peer_connected
 
             elif msg_type == MSG_TYPE_PLAYER:
                 self.peer_position.x, self.peer_position.y, self.peer_rotation = struct.unpack(PLAYER_STRUCT, payload)
@@ -359,19 +364,24 @@ class Client():
 
     # UDP
     def send_heartbeat(self, lock):
-        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_sock.connect((self.host, self.port))
+        self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_sock.connect((self.host, self.port))
+        self.is_connected = True
         while True:
             try:
-                tcp_sock.sendall(b'heartbeat')
-                data = tcp_sock.recv(1024)
-                self.process_bytes_udp(data, lock)
-                # print(f"[Client] client_id: {self.id}")
-                time.sleep(5)
-            except:
-                print("[CLIENT] TCP connection lost")
+                if self.is_connected:
+                    self.tcp_sock.sendall(b'heartbeat')
+                    data = self.tcp_sock.recv(1024)
+                    self.process_bytes_udp(data, lock)
+                    print(f"[Client] client_id: {self.id}")
+                    time.sleep(5)
+                else:
+                    break
+            except Exception as e:
+                print(f"[CLIENT] TCP connection lost: {e}")
                 break
-        tcp_sock.close()
+        print(f"[Client] TCP Socket Closed")
+        self.tcp_sock.close()
 
     def build_ping_message(self):
         ping_data = struct.pack(PING_STRUCT, self.is_server_alive)
@@ -411,16 +421,16 @@ class Client():
                         msg = self.send_game_state_udp()
                     else:
                         msg = self.build_ping_message()
-                    print(f"[Client] msg: {msg}")
                     self.client_socket.sendto(msg, self.server_addr)
 
                     data, addr = self.client_socket.recvfrom(4096)
                     self.process_bytes_udp(data, lock)
                     time.sleep(0.005) # 100 FPS?
                 except socket.timeout:
+                    print(f"[Client] socket.timeout")
                     continue
                 except OSError as e:
-                    print(e)
+                    print(f"[Client] OSError: {e}")
                     break # socket was closed
                 except Exception as e:
                     print(f"[Client] Error: {e}")
@@ -431,7 +441,9 @@ class Client():
         if not data: #or addr != self.server_addr:
             print("[Client] end of packet")
             return
+        # print(f"data_len: {len(data)}")
         buffer += data
+        # print(f"buffer_len: {len(buffer)}")
         while True:
             if len(buffer) < 5:
                 # print(f"[Client] len(buffer) < 5")
@@ -447,5 +459,8 @@ class Client():
             buffer = buffer[total_len:]
 
     def disconnect_udp(self):
-        self.client_socket.close()
-        print("Client Closed")
+        self.is_connected = False
+
+        if self.id == 1:
+            self.client_socket.close()
+            print("Client Closed")

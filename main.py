@@ -90,7 +90,7 @@ def setup_multiplayer_game(updatable, drawable, asteroids, shots, screen_width, 
 
     return player, ui, peer, asteroid_field
 
-def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game):
+def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat):
     if ENABLE_SOUNDS:
         pygame.mixer.Sound(SHIP_EXPLOSION).play()
     print("Game Over!")
@@ -104,6 +104,8 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
         client.disconnect_udp()
         if client_thread:
             client_thread.join()
+        if client_heartbeat:
+            client_heartbeat.join()
         client = None
     player = None
     peer = None
@@ -116,7 +118,7 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
     start_game = False
     return asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game
 
-def leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game):
+def leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat):
     if ENABLE_SOUNDS:
         pygame.mixer.Sound(SHIP_EXPLOSION).play()
     print("Left game")
@@ -130,6 +132,8 @@ def leave_game(asteroids, shots, updatable, drawable, menu, client, client_threa
         client.disconnect_udp()
         if client_thread:
             client_thread.join()
+        if client_heartbeat:
+            client_heartbeat.join()
         client = None
     player = None
     peer = None
@@ -164,7 +168,7 @@ def main():
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
     dt = 0
-    fps = 30
+    fps = 60
 
     font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 30)
     menu_font = pygame.freetype.Font(os.path.realpath(FONT_FILE), 80)
@@ -557,6 +561,9 @@ def main():
                                 client.asteroids = a.split(asteroid_field)
                                 client.destroy_asteroid_id = None
                                 continue
+                        for a in client.asteroids:
+                            if not a.alive():
+                                continue
                             # if a.check_collisions(player):
                             #     asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
                             #     break
@@ -565,6 +572,7 @@ def main():
                                     continue
                                 if a.check_collisions(s):
                                     hit = True
+                                    print(f"[Client] {client.id} hit {a.id}")
                                     if client.id == 1:
                                         client.asteroids = a.split(asteroid_field)
                                         s.used = True                                
@@ -585,6 +593,7 @@ def main():
                                         ui.update_score(10)
                                         client.destroy_asteroid(a.id)
                                         s.kill()
+                                        break
                             if hit:
                                 break
 
@@ -611,7 +620,7 @@ def main():
                     # ========== Multiplayer Game End ========== #         
                 elif client and client.num_connections == 1 and start_game:
                     with lock:
-                        asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                        asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat)
                 else:
                     pass
             else:
@@ -624,7 +633,7 @@ def main():
                         elif player:
                             if player.pause and leave_game_button.check_collisions(mouse_pos):
                                 print("here")
-                                asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                                asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat)
                                 start_game = False
 
                 if not start_game:
@@ -668,7 +677,7 @@ def main():
                             break
                         for s in shots:
                             if a.check_collisions(s):
-                                asteroid_field.asteroids = a.split(asteroid_field)
+                                a.split(asteroid_field)
                                 s.kill()
                                 ui.update_score(10)
                 
@@ -683,8 +692,11 @@ def main():
         if client:
             client.disconnect_udp()
             if client_thread:
-                client_thread.join()
+                # client_thread.join()
                 print("client thread joined")
+            if client_heartbeat:
+                # client_heartbeat.join()
+                print("client heartbeat joined")
         if server:
             server.disconnect_udp()
             if server_thread:
