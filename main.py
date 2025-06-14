@@ -162,8 +162,11 @@ def main():
     if ENABLE_SOUNDS:
         pygame.mixer.init()
 
-    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME | pygame.SCALED | pygame.FULLSCREEN) # borderless windowed mode
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # windowed mode
+    info = pygame.display.Info()
+    SCREEN_WIDTH, SCREEN_HEIGHT = info.current_w, info.current_h
+
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.NOFRAME | pygame.SCALED | pygame.FULLSCREEN) # borderless windowed mode
+    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # windowed mode
     pygame.display.set_caption("Asteroids")
     # pygame.display.toggle_fullscreen()
     clock = pygame.time.Clock()
@@ -197,6 +200,7 @@ def main():
     client = None
     server_thread = None
     client_thread = None
+    client_heartbeat = None
 
     menu = IN_MENU
     start_game = False
