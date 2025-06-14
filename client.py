@@ -28,7 +28,7 @@ class Client():
         self.peer_shots = []
         self.shots = []
         self.action = GET_ACTION
-        self.destroy_asteroid_id = None
+        self.destroy_asteroid_id = 0
         self.is_server_alive = False
         self.is_peer_connected = False
         self.peer_position = pygame.Vector2(0,0)
@@ -75,8 +75,6 @@ class Client():
         self.run = False
 
     def destroy_asteroid(self, id):
-        # print(f"DESTROY_SHOT: {id}")
-        self.action = DESTROY_ACTION
         self.destroy_asteroid_id = id
 
     def disconnect(self):
@@ -305,7 +303,7 @@ class Client():
 
             elif msg_type == MSG_TYPE_CLIENT:
                 id, is_peer_connected = struct.unpack(CLIENT_STRUCT, payload)
-                print(f"[Client] id: {id}, is_peer_connected: {is_peer_connected}")
+                # print(f"[Client] id: {id}, is_peer_connected: {is_peer_connected}")
                 self.id = id 
                 self.is_peer_connected = is_peer_connected
 
@@ -330,7 +328,6 @@ class Client():
 
             elif msg_type == MSG_TYPE_DESTROY_ASTEROID:
                 self.destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
-                self.action = DESTROY_ACTION
 
             elif msg_type == MSG_TYPE_PING:
                 self.is_server_alive = struct.unpack(PING_STRUCT, payload)[0]
@@ -365,18 +362,17 @@ class Client():
     # UDP
     def send_heartbeat(self, lock):
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp_sock.settimeout(None)
+        self.tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.tcp_sock.connect((self.host, self.port))
         self.is_connected = True
-        while True:
+        while self.is_connected:
             try:
-                if self.is_connected:
-                    self.tcp_sock.sendall(b'heartbeat')
-                    data = self.tcp_sock.recv(1024)
-                    self.process_bytes_udp(data, lock)
-                    print(f"[Client] client_id: {self.id}")
-                    time.sleep(5)
-                else:
-                    break
+                self.tcp_sock.sendall(b'heartbeat')
+                data = self.tcp_sock.recv(1024)
+                self.process_bytes_udp(data, lock)
+                # print(f"[Client] client_id: {self.id}")
+                time.sleep(1)
             except Exception as e:
                 print(f"[CLIENT] TCP connection lost: {e}")
                 break
@@ -393,21 +389,17 @@ class Client():
             msg1 = self.build_action_message()
             msg2 = self.build_client_message()
             msg3 = self.build_player_message()
+            msg4 = b''
+            msg5 = b''
+            msg7 = b''
             if self.shots is not None:
                 msg5 = self.build_shot_message()
-            else:
-                msg5 = b''
             if self.id == 1 and len(self.asteroids) > 0:
                 msg4 = self.build_asteroid_message()
-                return msg2 + msg1 + msg3 + msg4 + msg5  
-            else:
-                return msg2 + msg1 + msg3 + msg5
-        elif self.action == DESTROY_ACTION:
-            msg1 = self.build_destroy_asteroid_message()
-            msg2 = self.build_client_message()
-            self.action = GET_ACTION
-            self.destroy_asteroid_id = None
-            return msg2 + msg1
+            if self.id == 2 and self.destroy_asteroid_id > 0:
+                msg7 = self.build_destroy_asteroid_message()
+                self.destroy_asteroid_id = 0
+            return msg2 + msg1 + msg3 + msg5 + msg4 + msg7
         else:
             raise Exception(f"[Client] invalid action: {self.action}")
 
@@ -460,7 +452,5 @@ class Client():
 
     def disconnect_udp(self):
         self.is_connected = False
-
-        if self.id == 1:
-            self.client_socket.close()
-            print("Client Closed")
+        self.client_socket.close()
+        print("Client Closed")

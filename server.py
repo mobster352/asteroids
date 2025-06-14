@@ -13,13 +13,13 @@ class Client_Data():
         self.conn_addr = None  # (conn, addr)
         self.position = (0, 0)
         self.rotation = 0
-        self.is_connected = False,
-        self.asteroid_data = [],
+        self.is_connected = False
+        self.asteroid_data = []
         self.id = 0
         self.shots_data = []
 
         self.action = GET_ACTION
-        self.destroy_asteroid_id = None
+        self.destroy_asteroid_id = 0
 
         # UDP
         self.addr = (None,None) # (ip, port)
@@ -311,9 +311,12 @@ class Server():
         elif msg_type == MSG_TYPE_CLIENT:
             client_id, is_connected = struct.unpack(CLIENT_STRUCT, payload)
             self.client_index = self.get_index_by_client_id(client_id)
-            self.client_other_index = 1 - self.client_index
-            self.clients[self.client_index].id = client_id 
-            self.clients[self.client_index].is_connected = is_connected
+            if self.client_index is None:
+                return DISCONNECT
+            else:
+                self.client_other_index = 1 - self.client_index
+                self.clients[self.client_index].id = client_id 
+                self.clients[self.client_index].is_connected = is_connected
 
         elif msg_type == MSG_TYPE_PLAYER:
             position_x, position_y, self.clients[self.client_index].rotation = struct.unpack(PLAYER_STRUCT, payload)
@@ -347,11 +350,12 @@ class Server():
                         })
 
         elif msg_type == MSG_TYPE_DESTROY_ASTEROID:
-            self.clients[self.client_other_index].destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
-            self.clients[self.client_other_index].action = DESTROY_ACTION
+            self.clients[0].destroy_asteroid_id = struct.unpack(DESTROY_ASTEROID_STRUCT, payload)[0]
 
         elif msg_type == MSG_TYPE_PING:
             self.clients[self.client_index].action = PING_ACTION
+
+        return SUCCESS
 
     def get_index_by_client_id(self, client_id):
         for i, client in enumerate(self.clients):
@@ -397,6 +401,7 @@ class Server():
         # UDP socket
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.server_socket.settimeout(30.0)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
 
         self.udp_game_thread = threading.Thread(target=self.udp_game_handler, daemon=True).start()
@@ -417,23 +422,25 @@ class Server():
                 if not data:
                     break
                 self.client_index = self.find_or_assign_slot_udp(addr)
-                print(f"[Server] client_index: {self.client_index}")
-                self.clients[self.client_index].id = self.client_index + 1
-                print(f"[Server] client id: {self.clients[self.client_index].id}")
+
                 if self.client_index is None:
-                    raise Exception("[Server] Unable to bind client")
+                    self.num_connections = -1
+                    msg = self.build_server_message()
+                    conn.sendall(msg)
+                    break
+
+                self.clients[self.client_index].id = self.client_index + 1
                 self.client_other_index = 1 - self.client_index
-                print(f"[Server] other_index: {self.client_other_index}")
+
                 msg = self.build_client_message()
-                print(f"[Server] msg: {msg}")
                 conn.sendall(msg)
-                print(f"[Server] msg sent")
             except Exception as e:
                 print(f"[Server] Exception: {e}")
         with self.lock:
-            self.clients[self.client_index].reset_data()
+            if self.client_index is not None:
+                self.clients[self.client_index].reset_data()
+                print(f"[Server] Client {self.client_index+1} cleanup done.")
             self.num_connections -= 1
-            print(f"[Server] Client {self.client_index+1} cleanup done.")
             conn.close()
             print(f"[TCP] Closed: {addr}")
 
@@ -450,9 +457,14 @@ class Server():
             try:
                 data, addr = self.server_socket.recvfrom(4096)
                 response = self.handle_udp_message(data, addr)
+                if response == DISCONNECT:
+                    print(f"[Server] Client Disconnected...")
+                    response = self.build_server_message()
+                    self.server_socket.sendto(response, addr)
+                    break
                 self.server_socket.sendto(response, addr)
             except Exception as e:
-                print(f"[UDP Error]: {e}, data: {data}, addr: {addr}")
+                print(f"[Server][UDP Error]: {e}, data: {data}, addr: {addr}")
 
     def find_or_assign_slot_udp(self, addr):
         with self.lock:
@@ -461,7 +473,7 @@ class Server():
                     self.clients[i].last_seen = datetime.now().timestamp()
                     return i
             for i, client in enumerate(self.clients):
-                if client.addr[i] is None:
+                if client.addr[0] is None:
                     self.clients[i].addr = addr
                     self.clients[i].last_seen = datetime.now().timestamp()
                     self.num_connections += 1
@@ -489,16 +501,14 @@ class Server():
             msg3 = self.build_player_message()
             msg5 = self.build_shot_message()
             msg6 = self.build_server_message()
+            msg7 = b''
+            msg4 = b''
+            if self.clients[self.client_index].id == 1 and self.clients[self.client_index].destroy_asteroid_id > 0:
+                msg7 = self.build_destroy_asteroid_message()
+                self.clients[self.client_index].destroy_asteroid_id = 0
             if self.clients[self.client_index].id == 2:
                 msg4 = self.build_asteroid_message()
-                return msg1 + msg2 + msg3 + msg4 + msg5 + msg6 
-            else:
-                return msg1 + msg2 + msg3 + msg5 + msg6
-        elif self.clients[self.client_index].action == DESTROY_ACTION:
-            msg = self.build_destroy_asteroid_message()
-            self.action = GET_ACTION
-            self.destroy_asteroid_id = None
-            return msg
+            return msg1 + msg2 + msg3 + msg4 + msg5 + msg6 + msg7
         elif self.clients[self.client_index].action == PING_ACTION:
             msg = self.build_ping_message()
             return msg
@@ -523,9 +533,10 @@ class Server():
                 break  # wait for full payload
 
             payload = buffer[5:total_len]
-            self.handle_message(msg_type, payload)
+            status = self.handle_message(msg_type, payload)
+            if status == DISCONNECT:
+                return DISCONNECT
             buffer = buffer[total_len:]
-        # print(f"action: {self.clients[index].action}")
         return self.send_game_state_udp()
 
     def build_ping_message(self):
@@ -536,7 +547,7 @@ class Server():
     def disconnect_udp(self):
         self.disconnect()
 
-        if self.clients[self.client_index] == 1:
+        if self.client_index == 1:
             self.server_socket.close()
             print("Server closed")
 

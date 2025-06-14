@@ -102,18 +102,18 @@ def game_over(asteroids, shots, updatable, drawable, menu, client, client_thread
     if client:
         client.kill_client()
         client.disconnect_udp()
-        if client_thread:
-            client_thread.join()
-        if client_heartbeat:
-            client_heartbeat.join()
+        # if client_thread:
+        #     client_thread.join()
+        # if client_heartbeat:
+        #     client_heartbeat.join()
         client = None
     player = None
     peer = None
     time.sleep(0.2)
     if server:
         server.disconnect_udp()
-        if server_thread:
-            server_thread.join()
+        # if server_thread:
+        #     server_thread.join()
         server = None
     start_game = False
     return asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game
@@ -130,18 +130,18 @@ def leave_game(asteroids, shots, updatable, drawable, menu, client, client_threa
     if client:
         client.kill_client()
         client.disconnect_udp()
-        if client_thread:
-            client_thread.join()
-        if client_heartbeat:
-            client_heartbeat.join()
+        # if client_thread:
+        #     client_thread.join()
+        # if client_heartbeat:
+        #     client_heartbeat.join()
         client = None
     player = None
     peer = None
     time.sleep(0.2)
     if server:
         server.disconnect_udp()
-        if server_thread:
-            server_thread.join()
+        # if server_thread:
+        #     server_thread.join()
         server = None
     start_game = False
     return asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game
@@ -325,6 +325,13 @@ def main():
                 # ========== Multiplayer Menu End ========== #
 
             elif menu == IN_CREATE_ROOM_MENU:
+
+                if client:
+                    if client.num_connections == -1:
+                        menu = IN_MENU
+                        client = None
+                    elif client.num_connections == 2:
+                        menu = IN_MULTIPLAYER_GAME
                 
                 # ========== Create Room Menu Start ============ #
 
@@ -349,15 +356,22 @@ def main():
 
                             time.sleep(0.01)
 
-                            player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
-
-                            menu = IN_MULTIPLAYER_GAME      
+                            player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)     
                         elif host_textbox.check_collisions(mouse_pos):
                             host_input_active = True   
                         elif port_textbox.check_collisions(mouse_pos):
                             host_input_active = False           
                         elif main_menu_button.check_collisions(mouse_pos):
                             menu = IN_MENU
+                            if client:
+                                client.kill_client()
+                                client.disconnect_udp()
+                                client = None
+                            player = None
+                            peer = None
+                            if server:
+                                server.disconnect_udp()
+                                server = None
 
                 screen.fill("black")
                 screen.blit(bg, (0,0))
@@ -401,6 +415,13 @@ def main():
 
             elif menu == IN_JOIN_ROOM_MENU:
 
+                if client:
+                    if client.num_connections == -1:
+                        menu = IN_MENU
+                        client = None
+                    elif client.num_connections == 2:
+                        menu = IN_MULTIPLAYER_GAME
+
                 # ========== Join Room Start ============ #
 
                 for event in event_list:
@@ -422,8 +443,6 @@ def main():
                                 time.sleep(0.1)
 
                                 player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
-
-                                menu = IN_MULTIPLAYER_GAME
                             except Exception as e:
                                 print(f"[Client] Server not alive: {e}")
                         elif host_textbox.check_collisions(mouse_pos):
@@ -432,6 +451,12 @@ def main():
                             host_input_active = False 
                         elif main_menu_button.check_collisions(mouse_pos):
                             menu = IN_MENU
+                            if client:
+                                client.kill_client()
+                                client.disconnect_udp()
+                                client = None
+                            player = None
+                            peer = None
 
                 screen.fill("black")
                 screen.blit(bg, (0,0))
@@ -486,7 +511,7 @@ def main():
                                 run = False
                             elif player:
                                 if player.pause and leave_game_button.check_collisions(mouse_pos):
-                                    asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                                    asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = leave_game(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat)
                                     start_game = False
                                     
                     if not start_game:
@@ -564,15 +589,15 @@ def main():
                         for a in client.asteroids:
                             if not a.alive():
                                 continue
-                            # if a.check_collisions(player):
-                            #     asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
-                            #     break
-                            for s in shots:
+                            if a.check_collisions(player):
+                                asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat)
+                                break
+                            for s in player.get_shots():
                                 if not s.alive():
                                     continue
                                 if a.check_collisions(s):
                                     hit = True
-                                    print(f"[Client] {client.id} hit {a.id}")
+                                    # print(f"[Client] {client.id} hit {a.id}")
                                     if client.id == 1:
                                         client.asteroids = a.split(asteroid_field)
                                         s.used = True                                
@@ -664,7 +689,7 @@ def main():
 
                     for a in asteroids:
                         if a.check_collisions(player):
-                            asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game)
+                            asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game = game_over(asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game, client_heartbeat)
                             
                             # Save data
                             if ui.get_high_score() < ui.get_score():

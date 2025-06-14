@@ -64,8 +64,8 @@ PLAYER_STRUCT = '!fff'
 ASTEROID_STRUCT = '!IffH'
 # shot_id (uint32), position_x (float32), position_y (float32), radius (ushort16), used (bool)
 SHOT_STRUCT = '!IffH?'
-# num_connections (unsigned char)
-SERVER_DATA_STRUCT = '!B'
+# num_connections (signed char)
+SERVER_DATA_STRUCT = '!b'
 # destroy_asteroid_id (uint32)
 DESTROY_ASTEROID_STRUCT = '!I'
 
@@ -79,3 +79,6 @@ MSG_TYPE_SERVER_DATA = 6
 MSG_TYPE_DESTROY_ASTEROID = 7
 
 # TCP_PORT = 65432
+
+DISCONNECT = -1
+SUCCESS = 1
