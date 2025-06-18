@@ -464,7 +464,8 @@ class Server():
                     break
                 self.server_socket.sendto(response, addr)
             except Exception as e:
-                print(f"[Server][UDP Error]: {e}, data: {data}, addr: {addr}")
+                # print(f"[Server][UDP Error]: {e}, data: {data}, addr: {addr}")
+                pass
 
     def find_or_assign_slot_udp(self, addr):
         with self.lock:
@@ -544,8 +545,9 @@ class Server():
         msg = struct.pack(MSG_HEADER, len(ping_data) + 1, MSG_TYPE_PING) + ping_data
         return msg
 
-    def disconnect_udp(self):
+    def disconnect_udp(self, client_id):
         self.disconnect()
+        self.clients[1-client_id].is_connected = False
 
         if self.client_index == 1:
             self.server_socket.close()

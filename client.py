@@ -41,7 +41,8 @@ class Client():
             try:
                 # self.process_json(lock)
                 self.process_bytes(lock)
-                time.sleep(0.003) # 100 FPS?
+                # time.sleep(0.003) # 3 ms
+                pygame.time.wait(100) # 100 ms
             except socket.timeout:
                 continue
             except OSError as e:
@@ -362,7 +363,7 @@ class Client():
     # UDP
     def send_heartbeat(self, lock):
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp_sock.settimeout(None)
+        self.tcp_sock.settimeout(2.5)
         self.tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.tcp_sock.connect((self.host, self.port))
         self.is_connected = True
@@ -372,7 +373,8 @@ class Client():
                 data = self.tcp_sock.recv(1024)
                 self.process_bytes_udp(data, lock)
                 # print(f"[Client] client_id: {self.id}")
-                time.sleep(1)
+                time.sleep(1) # 1 second
+                # pygame.time.wait(1000) # 1 second
             except Exception as e:
                 print(f"[CLIENT] TCP connection lost: {e}")
                 break
@@ -407,7 +409,7 @@ class Client():
         while self.run:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
                 self.client_socket = s
-                self.client_socket.settimeout(30.0)
+                self.client_socket.settimeout(2.5)
                 try:
                     if self.is_server_alive:
                         msg = self.send_game_state_udp()
@@ -417,10 +419,11 @@ class Client():
 
                     data, addr = self.client_socket.recvfrom(4096)
                     self.process_bytes_udp(data, lock)
-                    time.sleep(0.005) # 100 FPS?
+                    time.sleep(0.01) # 10 ms
+                    # pygame.time.wait(10) # 10 ms
                 except socket.timeout:
                     print(f"[Client] socket.timeout")
-                    continue
+                    break # no data received
                 except OSError as e:
                     print(f"[Client] OSError: {e}")
                     break # socket was closed
@@ -452,5 +455,6 @@ class Client():
 
     def disconnect_udp(self):
         self.is_connected = False
-        self.client_socket.close()
-        print("Client Closed")
+        self.run = False
+        # self.client_socket.close()
+        print("[Client] Client Closed")
