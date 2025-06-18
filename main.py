@@ -152,6 +152,13 @@ def leave_game(asteroids, shots, updatable, drawable, menu, client, client_threa
     start_game = False
     return asteroids, shots, updatable, drawable, menu, client, client_thread, player, peer, server, server_thread, start_game
 
+def show_mouse_pos(font, dynamic_screen_width, dynamic_screen_height, screen):
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_pos_surface, rect = font.render(f"{mouse_pos}", "white", (0,0,0))
+    rect_width = rect[2]
+    rect_height = rect[3]
+    screen.blit(mouse_pos_surface, (dynamic_screen_width - rect_width, dynamic_screen_height - rect_height))
+
 def main():
     bg = pygame.image.load(BACKGROUND_IMAGE)
     os.environ['SDL_AUDIODRIVER'] = 'dsp'
@@ -213,6 +220,7 @@ def main():
 
     menu = IN_MENU
     start_game = False
+    connect_pressed = False
 
     new_game_button = Button("New Game", SCREEN_WIDTH, SCREEN_HEIGHT, 2, 2.5)
 
@@ -272,6 +280,8 @@ def main():
 
                 screen.fill("black")
                 screen.blit(bg, (0,0))
+
+                show_mouse_pos(font, dynamic_screen_width, dynamic_screen_height, screen)
 
                 menu_surface, rect = menu_font.render("Asteroids", "white", (0,0,0))
                 # rect - (x, y, w, h)
@@ -345,6 +355,7 @@ def main():
                         client = None
                     elif client.num_connections == 2:
                         menu = IN_MULTIPLAYER_GAME
+                        connect_pressed = False
                 
                 # ========== Create Room Menu Start ============ #
 
@@ -374,6 +385,7 @@ def main():
                             # pygame.time.wait(10) # 10 ms
 
                             player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)     
+                            connect_pressed = True
                         elif host_textbox.check_collisions(mouse_pos):
                             host_input_active = True   
                         elif port_textbox.check_collisions(mouse_pos):
@@ -384,12 +396,12 @@ def main():
                             if client:
                                 client.kill_client()
                                 client.disconnect_udp()
-                                client = None
-                            player = None
-                            peer = None
                             if server:
                                 server.disconnect_udp(client.id)
                                 server = None
+                            client = None
+                            player = None
+                            peer = None
 
                 screen.fill("black")
                 screen.blit(bg, (0,0))
@@ -402,23 +414,29 @@ def main():
 
                 screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
 
-                host_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
-                x_pos, y_pos = host_textbox.draw_textbox("white", "grey", font, screen)
+                if connect_pressed:
+                    connection_surface, rect = font.render(f"Waiting for connection on {host_input.value}:{port_input.value}...", "white", (0,0,0))
+                    rect_width = rect[2] / 2
+                    rect_height = rect[3]
+                    screen.blit(connection_surface, (dynamic_screen_width / 2 - rect_width, dynamic_screen_height / 2 - rect_height))
+                else:
+                    host_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
+                    x_pos, y_pos = host_textbox.draw_textbox("white", "grey", font, screen)
 
-                host_input.font_color = "black"
-                if host_input_active:
-                    host_input.update(event_list)
-                    port_input.cursor_visible = False
-                screen.blit(host_input.surface, (x_pos, y_pos))
+                    host_input.font_color = "black"
+                    if host_input_active:
+                        host_input.update(event_list)
+                        port_input.cursor_visible = False
+                    screen.blit(host_input.surface, (x_pos, y_pos))
 
-                port_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
-                x_pos, y_pos = port_textbox.draw_textbox("white", "grey", font, screen)
+                    port_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
+                    x_pos, y_pos = port_textbox.draw_textbox("white", "grey", font, screen)
 
-                port_input.font_color = "black"
-                if not host_input_active:
-                    port_input.update(event_list)
-                    host_input.cursor_visible = False
-                screen.blit(port_input.surface, (x_pos, y_pos))
+                    port_input.font_color = "black"
+                    if not host_input_active:
+                        port_input.update(event_list)
+                        host_input.cursor_visible = False
+                    screen.blit(port_input.surface, (x_pos, y_pos))
 
                 connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
                 connect_button.draw_button("white", "blue", font, screen)
@@ -439,6 +457,7 @@ def main():
                         client = None
                     elif client.num_connections == 2:
                         menu = IN_MULTIPLAYER_GAME
+                        connect_pressed = False
 
                 # ========== Join Room Start ============ #
 
@@ -464,6 +483,7 @@ def main():
                                 # pygame.time.wait(10) # 10 ms
 
                                 player, ui, peer, asteroid_field = setup_multiplayer_game(updatable, drawable, asteroids, shots, dynamic_screen_width, dynamic_screen_height, filename, client)
+                                connect_pressed = True
                             except Exception as e:
                                 print(f"[Client] Server not alive: {e}")
                         elif host_textbox.check_collisions(mouse_pos):
@@ -491,23 +511,29 @@ def main():
 
                 screen.blit(menu_surface, (dynamic_screen_width / 2 - rect_width_center, dynamic_screen_height / 4 - rect_height_center))
 
-                host_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
-                x_pos, y_pos = host_textbox.draw_textbox("white", "grey", font, screen)
+                if connect_pressed:
+                    connection_surface, rect = font.render(f"Failed to join connection on {host_input.value}:{port_input.value}", "white", (0,0,0))
+                    rect_width = rect[2] / 2
+                    rect_height = rect[3]
+                    screen.blit(connection_surface, (dynamic_screen_width / 2 - rect_width, dynamic_screen_height / 2 - rect_height))
+                else:
+                    host_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
+                    x_pos, y_pos = host_textbox.draw_textbox("white", "grey", font, screen)
 
-                host_input.font_color = "black"
-                if host_input_active:
-                    host_input.update(event_list)
-                    port_input.cursor_visible = False
-                screen.blit(host_input.surface, (x_pos, y_pos))
+                    host_input.font_color = "black"
+                    if host_input_active:
+                        host_input.update(event_list)
+                        port_input.cursor_visible = False
+                    screen.blit(host_input.surface, (x_pos, y_pos))
 
-                port_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
-                x_pos, y_pos = port_textbox.draw_textbox("white", "grey", font, screen)
+                    port_textbox.update_textbox(dynamic_screen_width, dynamic_screen_height)
+                    x_pos, y_pos = port_textbox.draw_textbox("white", "grey", font, screen)
 
-                port_input.font_color = "black"
-                if not host_input_active:
-                    port_input.update(event_list)
-                    host_input.cursor_visible = False
-                screen.blit(port_input.surface, (x_pos, y_pos))
+                    port_input.font_color = "black"
+                    if not host_input_active:
+                        port_input.update(event_list)
+                        host_input.cursor_visible = False
+                    screen.blit(port_input.surface, (x_pos, y_pos))
 
                 connect_button.update_button(dynamic_screen_width, dynamic_screen_height)
                 connect_button.draw_button("white", "blue", font, screen)
